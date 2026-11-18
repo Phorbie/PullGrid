@@ -1,0 +1,6 @@
+*.stl
+*.3mf
+!docs/**
+.DS_Store
+node_modules/
+site/dist/

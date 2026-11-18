@@ -56,7 +56,7 @@ clear_front = 0;
 
 /* [Render] */
 show_cabinet = true;
-part = "assembly"; // [assembly, frame, envelope]
+part = "assembly"; // [assembly, frame, envelope, cabinet, keepouts]
 // Preview only: how far the frame is pulled out (0 = closed, 1 = full slide travel)
 extension = 0; // [0:0.05:1]
 
@@ -94,6 +94,12 @@ hinge_keepouts = [for (h = hinge_list) [hinge_x(h[1]), 0, h[0] - h[2] / 2, h[1],
 door_keepouts = (hinge_side == "none" || door_intrusion <= 0) ? [] :
     [[hinge_x(door_intrusion), 0, o_b, door_intrusion, 30, opening_h]];
 all_keepouts = concat(hinge_keepouts, door_keepouts, keepouts);
+// OpenSCAD counts [0:-1] backwards, so empty lists need a guard
+function seq(n) = n > 0 ? [0 : n - 1] : [];
+keepout_labels = concat(
+    [for (i = seq(len(hinge_keepouts))) str("hinge ", i + 1)],
+    len(door_keepouts) > 0 ? ["door swing"] : [],
+    [for (i = seq(len(keepouts))) str("keep-out ", i + 1)]);
 
 // ---------- Solve ----------
 env0 = base_envelope(front_w, front_h, r_w, r_h, interior_depth,
@@ -111,9 +117,13 @@ echo(str("PULLGRID envelope_mm=", [env_w(env), env_d(env), env_h(env)]));
 echo(str("PULLGRID slide_mm=", slide_len));
 echo(str("PULLGRID panel_cells=", [grid_cells(layout[7]), grid_cells(layout[8])], " x", panel_count));
 for (l = solved[1])
-    echo(str("PULLGRID keepout=", l[0], " dodged_by=", ko_option_names[l[1]]));
+    echo(str("PULLGRID keepout=", l[0], " dodged_by=", ko_option_names[l[1]], " label=", keepout_labels[l[0]]));
+echo(str("PULLGRID hinges=", len(hinge_keepouts)));
 if (!env_valid(env)) echo("PULLGRID ERROR no_fit");
 if (slide_len == 0) echo("PULLGRID WARNING no_standard_slide_fits");
+// narrower than this and there's no room for anything on the panels
+MIN_USEFUL_W = 60;
+if (env_valid(env) && env_w(env) < MIN_USEFUL_W) echo("PULLGRID WARNING too_narrow");
 
 // ---------- Render ----------
 if (env_valid(env)) {
@@ -126,5 +136,9 @@ if (env_valid(env)) {
     if (part == "envelope")
         color("SteelBlue", 0.4) translate([env[0], env[4], env[2]]) cube([env_w(env), env_d(env), env_h(env)]);
 }
-if (show_cabinet && part != "frame")
-    cabinet_preview(front_w, front_h, r_w, r_h, interior_depth, o_l, o_r, o_b, o_t, all_keepouts);
+if (part == "assembly" && show_cabinet) {
+    cabinet_preview(front_w, front_h, r_w, r_h, interior_depth, o_l, o_r, o_b, o_t);
+    keepout_preview(all_keepouts);
+}
+if (part == "cabinet") cabinet_preview(front_w, front_h, r_w, r_h, interior_depth, o_l, o_r, o_b, o_t);
+if (part == "keepouts") keepout_preview(all_keepouts);

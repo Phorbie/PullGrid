@@ -10,7 +10,7 @@ fail=0
 run() {  # name, expected-substring, -D args...
   local name=$1 expect=$2; shift 2
   local log="$OUT/$name.log"
-  openscad -o "$OUT/$name.stl" "$@" -D 'part="frame"' "$SCAD" >"$log" 2>&1
+  openscad -o "$OUT/$name.stl" -D 'part="frame"' "$@" "$SCAD" >"$log" 2>&1
   if grep -q "$expect" "$log"; then
     echo "ok   $name  $(grep -o 'envelope_mm=[^"]*' "$log" | head -1)"
   else
@@ -21,11 +21,16 @@ run() {  # name, expected-substring, -D args...
 run default         "slide_mm=508"
 run frameless       "dodged_by=left"      -D 'frame_type="frameless"'
 run right_hinge     "dodged_by=right"     -D 'hinge_side="right"'
-run no_hinge        "envelope_mm"         -D 'hinge_side="none"'
-run rear_pipe       "dodged_by=back"      -D 'keepouts=[[0,500,0,300,60,200]]'
+run no_hinge        "hinges=0"            -D 'hinge_side="none"'
+run rear_pipe       "dodged_by=back label=keep-out 1"      -D 'keepouts=[[0,500,0,300,60,200]]'
 run tapered         "envelope_mm"         -D 'rear_w=240' -D 'rear_h=560'
 run too_small       "ERROR no_fit"        -D 'opening_w=20' -D 'frame_type="frameless"' -D 'door_intrusion=25'
+run too_narrow      "WARNING too_narrow"  -D 'opening_w=50'
 run two_panels      "x2"                  -D 'panel_count=2'
+run door_swing      "label=door swing"    -D 'door_intrusion=25'
+run hinge_count     "hinges=3"            -D 'opening_h=700'
+run cabinet_part    "PULLGRID"            -D 'part="cabinet"'
+run keepouts_part   "PULLGRID"            -D 'part="keepouts"'
 
 rm -rf "$OUT"
 exit $fail

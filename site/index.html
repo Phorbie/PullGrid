@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PullGrid — pull-out generator for deep cabinets</title>
+  <meta name="description" content="Generate a 3D-printable vertical pull-out sized to your cabinet, with openGrid panels. Free, by Phorbie Designs.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 34%22%3E%3Crect width=%2234%22 height=%2234%22 rx=%227%22 fill=%22%231f1e1b%22/%3E%3Cpath d=%22M9 6v22M17 6v22M25 6v22%22 stroke=%22%23f3f0e8%22 stroke-width=%224%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.js" } }</script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <h1>PullGrid</h1>
+        <p class="tag">Pull-outs for deep cabinets, sized to yours. openGrid inside.</p>
+      </div>
+    </div>
+    <div class="units" role="group" aria-label="Units">
+      <button type="button" data-unit="in" class="on">in</button>
+      <button type="button" data-unit="mm">mm</button>
+    </div>
+  </header>
+
+  <div class="banner">Pre-alpha: the fit solver works, the frame is placeholder geometry. Don't print it yet.</div>
+
+  <main class="layout">
+    <form id="form" class="panel" autocomplete="off" novalidate>
+      <section>
+        <h2>Your cabinet</h2>
+        <svg class="measure" viewBox="0 0 300 156" role="img" aria-label="Where to measure opening width, opening height and interior depth">
+          <rect x="20" y="20" width="120" height="110" class="box"/>
+          <rect x="32" y="28" width="96" height="94" class="hole"/>
+          <line x1="32" y1="138" x2="128" y2="138" class="dim"/><text x="80" y="149">A · opening width</text>
+          <line x1="12" y1="28" x2="12" y2="122" class="dim"/><text x="8" y="16" class="l">B · height</text>
+          <path d="M175 40 h90 v80 h-90 z M175 40 l12 -14 h90 l-12 14 M265 120 l12 -14 v-80" class="box"/>
+          <line x1="175" y1="132" x2="265" y2="132" class="dim"/><text x="220" y="146">C · depth</text>
+        </svg>
+
+        <label class="field">
+          <span>A · Opening width</span>
+          <input data-key="opening_w" data-kind="len" inputmode="decimal">
+          <small>Narrowest clear width, inside edge to inside edge.</small>
+        </label>
+        <label class="field">
+          <span>B · Opening height</span>
+          <input data-key="opening_h" data-kind="len" inputmode="decimal">
+          <small>Clear height, bottom rail to top rail.</small>
+        </label>
+        <label class="field">
+          <span>C · Interior depth</span>
+          <input data-key="interior_depth" data-kind="len" inputmode="decimal">
+          <small>Front opening to back wall, measured at the floor.</small>
+        </label>
+
+        <div class="field">
+          <span>Cabinet type</span>
+          <div class="seg" data-key="frame_type">
+            <button type="button" data-v="face_frame">Face frame</button>
+            <button type="button" data-v="frameless">Frameless</button>
+          </div>
+          <small>Face frame: a wood frame narrower than the box around the opening. Frameless: the opening is the whole box.</small>
+        </div>
+        <div class="field">
+          <span>Hinge side</span>
+          <div class="seg" data-key="hinge_side">
+            <button type="button" data-v="left">Left</button>
+            <button type="button" data-v="right">Right</button>
+            <button type="button" data-v="none">None</button>
+          </div>
+        </div>
+      </section>
+
+      <details>
+        <summary>Advanced: offsets &amp; odd shapes</summary>
+        <p class="hint">Leave blank for auto. Fractions work: <code>11 3/4</code>. Add <code>mm</code> or <code>"</code> to override units.</p>
+        <div class="grid2">
+          <label class="field"><span>Frame overhang left</span><input data-key="offset_left" data-kind="len" data-auto inputmode="decimal"></label>
+          <label class="field"><span>Frame overhang right</span><input data-key="offset_right" data-kind="len" data-auto inputmode="decimal"></label>
+          <label class="field"><span>Bottom rail height</span><input data-key="offset_bottom" data-kind="len" data-auto inputmode="decimal"></label>
+          <label class="field"><span>Top rail drop</span><input data-key="offset_top" data-kind="len" data-auto inputmode="decimal"></label>
+          <label class="field"><span>Rear interior width</span><input data-key="rear_w" data-kind="len" data-auto="same as front" inputmode="decimal"></label>
+          <label class="field"><span>Rear interior height</span><input data-key="rear_h" data-kind="len" data-auto="same as front" inputmode="decimal"></label>
+        </div>
+        <label class="field"><span>Door swing intrusion</span><input data-key="door_intrusion" data-kind="len" inputmode="decimal">
+          <small>If the door can't open past 90°, how far it sticks into the opening.</small></label>
+
+        <h3>Hinges</h3>
+        <p class="hint" id="hinge-hint">Blank = auto.</p>
+        <div class="rows" id="hinges"></div>
+        <button type="button" class="ghost" id="add-hinge">+ Add hinge</button>
+      </details>
+
+      <details>
+        <summary>Expert: keep-outs</summary>
+        <p class="hint">Pipes, the disposal, anything in the way. Position from the interior's front-left floor corner: X across, Y into the cabinet, Z up.</p>
+        <div class="rows" id="keepouts"></div>
+        <button type="button" class="ghost" id="add-keepout">+ Add keep-out</button>
+      </details>
+
+      <details>
+        <summary>Frame &amp; clearances</summary>
+        <div class="grid2">
+          <label class="field"><span>Panels</span><input data-key="panel_count" data-kind="int" data-min="1" data-max="4" inputmode="numeric"></label>
+          <div class="field">
+            <span>Panel type</span>
+            <div class="seg" data-key="panel_thickness">
+              <button type="button" data-v="6.8">Full</button>
+              <button type="button" data-v="4">Lite</button>
+            </div>
+          </div>
+          <label class="field"><span>Slide height</span><input data-key="slide_height" data-kind="len" inputmode="decimal"></label>
+          <label class="field"><span>Side clearance</span><input data-key="clear_side" data-kind="len" inputmode="decimal"></label>
+          <label class="field"><span>Top clearance</span><input data-key="clear_top" data-kind="len" inputmode="decimal"></label>
+          <label class="field"><span>Rear clearance</span><input data-key="clear_rear" data-kind="len" inputmode="decimal"></label>
+        </div>
+      </details>
+
+      <div class="actions">
+        <button type="button" id="reset" class="ghost">Reset</button>
+        <button type="button" id="share" class="ghost">Copy link</button>
+      </div>
+    </form>
+
+    <section class="stage">
+      <div class="viewer" id="viewer">
+        <div class="busy" id="busy" hidden><span></span>Rendering</div>
+        <div class="viewbar">
+          <label class="ext">Pull out <input type="range" id="extension" min="0" max="100" value="55"></label>
+          <button type="button" class="ghost sm" id="view-reset">Reset view</button>
+        </div>
+        <div class="legend">
+          <span><i class="sw frame"></i>Pull-out</span>
+          <span><i class="sw cab"></i>Cabinet</span>
+          <span><i class="sw ko"></i>In the way</span>
+        </div>
+      </div>
+
+      <div class="report" id="report" aria-live="polite">
+        <div class="status" id="status">Loading OpenSCAD…</div>
+        <dl id="facts"></dl>
+        <ul id="tradeoffs"></ul>
+        <button type="button" id="download" class="primary" disabled>Download frame (.stl)</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><strong>PullGrid by Phorbie Designs</strong> · <a href="https://github.com/Phorbie/PullGrid">Source on GitHub</a> · <a href="LICENSE">CC BY-SA 4.0</a>: share and remix with credit.</p>
+    <p class="small">Runs entirely in your browser with <a href="https://openscad.org">OpenSCAD</a> (GPL-2.0, <a href="vendor/openscad/COPYING">license</a>) and <a href="https://threejs.org">three.js</a> (MIT). Compatible with <a href="https://www.printables.com/model/1214361-opengrid-walldesk-mounting-framework-and-ecosystem">openGrid</a>.</p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -6,6 +6,8 @@ Wall systems assume a flat wall you stand in front of. Deep cabinets don't have 
 
 ![v0 preview](docs/preview-v0.png)
 
+**Try it: [phorbie.github.io/PullGrid](https://phorbie.github.io/PullGrid/)** — runs entirely in your browser.
+
 > **Status: v0 / pre-alpha.** The fit solver works. The frame geometry is a placeholder and has not been printed. Don't print it yet.
 
 ## How it works
@@ -18,7 +20,7 @@ One OpenSCAD source feeds everything:
 
 | Output | What |
 |---|---|
-| Generator site (`site/`) | OpenSCAD → WASM in the browser, 3D preview, guided measuring |
+| [Generator site](https://phorbie.github.io/PullGrid/) (`site/`) | OpenSCAD → WASM in the browser, 3D preview, fit report, STL download |
 | MakerWorld / Printables | Same `.scad` in the native customizer + pre-sized common cabinets |
 | This repo | Source, issues, contributions |
 
@@ -29,7 +31,12 @@ openscad scad/pullgrid.scad                       # open in the GUI, use the Cus
 openscad -o frame.stl -D 'part="frame"' \
   -D 'opening_w=300' -D 'interior_depth=580' scad/pullgrid.scad
 tests/run.sh                                      # smoke tests
+
+# the site, locally
+(cd site && npm ci) && bash site/build.sh && python3 -m http.server -d _site
 ```
+
+Pushing to `main` runs the tests and deploys the site to the `gh-pages` branch.
 
 Lines starting with `PULLGRID` in the console are the fit report (envelope, slide length, panel cells, what each keep-out cost).
 
@@ -41,9 +48,12 @@ Lines starting with `PULLGRID` in the console are the fit report (envelope, slid
 - [ ] Split parts to fit print beds (256 mm default)
 - [ ] 20-minute dry-fit outline print
 - [ ] Better keep-out solver (notching around hinges instead of shrinking the whole side)
-- [ ] Generator site: WASM render, three.js preview, guided measuring, inch/mm toggle
+- [x] Generator site: WASM render, three.js preview, inch/mm with fractions, share links
+- [ ] Guided measuring flow (step-by-step with diagrams)
 - [ ] First real print in a real cabinet
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+PullGrid by Phorbie Designs is licensed under [CC BY-SA 4.0](LICENSE): use it, remix it, sell prints of it — just credit **PullGrid by Phorbie Designs** and share remixes under the same license.
+
+The generator site bundles third-party code under its own licenses: [OpenSCAD](https://openscad.org) (GPL-2.0, via [openscad-wasm](https://github.com/lorenzowritescode/openscad-wasm)) and [three.js](https://threejs.org) (MIT).

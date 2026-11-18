@@ -24,7 +24,7 @@
     </div>
   </header>
 
-  <div class="banner">Pre-alpha: the fit solver works, the frame is placeholder geometry. Don't print it yet.</div>
+  <div class="banner">Beta: v1 frame, not yet proven in a real cabinet. Print one base segment and dry-fit your slides before printing everything.</div>
 
   <main class="layout">
     <form id="form" class="panel" autocomplete="off" novalidate>
@@ -100,18 +100,38 @@
         <button type="button" class="ghost" id="add-keepout">+ Add keep-out</button>
       </details>
 
-      <details>
-        <summary>Frame &amp; clearances</summary>
+      <section>
+        <h2>Your pull-out</h2>
         <div class="grid2">
-          <label class="field"><span>Panels</span><input data-key="panel_count" data-kind="int" data-min="1" data-max="4" inputmode="numeric"></label>
+          <label class="field"><span>openGrid panels</span><input data-key="panel_count" data-kind="int" data-min="1" data-max="4" inputmode="numeric">
+            <small>Per pull-out, running front to back.</small></label>
           <div class="field">
-            <span>Panel type</span>
+            <span>Board type</span>
             <div class="seg" data-key="panel_thickness">
               <button type="button" data-v="6.8">Full</button>
-              <button type="button" data-v="4">Lite</button>
+              <button type="button" data-v="4.0">Lite</button>
             </div>
+            <small>Full is double-sided.</small>
           </div>
-          <label class="field"><span>Slide height</span><input data-key="slide_height" data-kind="len" inputmode="decimal"></label>
+          <label class="field"><span>Pull-outs</span><input data-key="pullouts" data-kind="int" data-min="1" data-max="6" data-auto inputmode="numeric">
+            <small>Side by side. Auto fits your bed.</small></label>
+          <div class="field">
+            <span>Print bed</span>
+            <div class="seg" data-key="bed_size">
+              <button type="button" data-v="180">180</button>
+              <button type="button" data-v="256">256</button>
+              <button type="button" data-v="325">325</button>
+            </div>
+            <small>mm. A1 mini / A1, P1, X1 / H2D.</small>
+          </div>
+        </div>
+      </section>
+
+      <details>
+        <summary>Hardware &amp; clearances</summary>
+        <div class="grid2">
+          <label class="field"><span>Slide thickness</span><input data-key="slide_t" data-kind="len" inputmode="decimal"><small>Per side. Standard is 1/2″.</small></label>
+          <label class="field"><span>Slide height</span><input data-key="slide_h" data-kind="len" inputmode="decimal"><small>Standard is 45 mm.</small></label>
           <label class="field"><span>Side clearance</span><input data-key="clear_side" data-kind="len" inputmode="decimal"></label>
           <label class="field"><span>Top clearance</span><input data-key="clear_top" data-kind="len" inputmode="decimal"></label>
           <label class="field"><span>Rear clearance</span><input data-key="clear_rear" data-kind="len" inputmode="decimal"></label>
@@ -132,7 +152,9 @@
           <button type="button" class="ghost sm" id="view-reset">Reset view</button>
         </div>
         <div class="legend">
-          <span><i class="sw frame"></i>Pull-out</span>
+          <span><i class="sw frame"></i>Printed</span>
+          <span><i class="sw board"></i>openGrid</span>
+          <span><i class="sw metal"></i>Slides</span>
           <span><i class="sw cab"></i>Cabinet</span>
           <span><i class="sw ko"></i>In the way</span>
         </div>
@@ -142,7 +164,22 @@
         <div class="status" id="status">Loading OpenSCAD…</div>
         <dl id="facts"></dl>
         <ul id="tradeoffs"></ul>
-        <button type="button" id="download" class="primary" disabled>Download frame (.stl)</button>
+      </div>
+
+      <div class="report" id="build" hidden>
+        <div class="buildhead">
+          <h2>What to make</h2>
+          <button type="button" id="download" class="primary">Download all parts (.zip)</button>
+        </div>
+        <p class="hint" id="dl-status"></p>
+        <h3>Print <span class="hint" id="print-sum"></span></h3>
+        <table class="parts" id="parts"></table>
+        <h3>openGrid boards <span class="hint">print from <a href="https://www.printables.com/model/1214361-opengrid-walldesk-mounting-framework-and-ecosystem">openGrid</a></span></h3>
+        <div id="boards"></div>
+        <h3>Buy</h3>
+        <ul class="hw" id="hw"></ul>
+        <h3>Install</h3>
+        <ol class="steps" id="steps"></ol>
       </div>
     </section>
   </main>

@@ -42,6 +42,20 @@ A pull-out sweeps its whole profile through every depth as it slides out, so any
 
 For each keep-out the solver tries five dodges — shrink from left, right, bottom, top, or shorten from the back — and keeps the one that loses the least volume. v0 is greedy and order-dependent; good enough for hinges plus a pipe.
 
-## Frame & clearances
+## Pull-out
 
-`slide_height`, `panel_count`, `panel_thickness` (6.8 openGrid full / 4.0 lite), `clear_side/top/rear/front`.
+| Param | Default | Meaning |
+|---|---|---|
+| `panel_count` | 1 | openGrid panels per pull-out, running front to back |
+| `panel_thickness` | 6.8 | 6.8 = openGrid Full (double-sided), 4.0 = Lite |
+| `pullouts` | -1 (auto) | Side-by-side pull-outs. Auto = as few as fit the print bed |
+| `bed_size` | 256 | Parts are split to fit (6 mm margin) |
+| `slide_t` | 12.7 | Side-mount slide thickness = clearance per side |
+| `slide_h` | 45 | Slide body height |
+| `clear_side/top/rear/front` | 3 / 5 / 10 / 0 | Gaps kept inside the envelope |
+
+The frame is sized to whole 28 mm openGrid cells, so it can come out up to one cell shorter and shallower than the envelope.
+
+## Render
+
+`part`: `assembly`, `carriage`, `boards`, `rails`, `slides_fixed`, `slides_moving`, `cabinet`, `keepouts`, `envelope`, or `print` with `print_index` (from the `PULLGRID part=` report lines). Print parts come out oriented and sitting on z = 0.

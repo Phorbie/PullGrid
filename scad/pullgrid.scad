@@ -41,12 +41,20 @@ door_intrusion = 0;
 keepouts = [];
 
 /* [Frame] */
-// Height the slide hardware adds under the base
-slide_height = 15;
-// Number of openGrid panels, running front to back
+// openGrid panels per pull-out, running front to back
 panel_count = 1;
-// 6.8 = openGrid full, 4.0 = openGrid lite
-panel_thickness = 6.8;
+// 6.8 = openGrid Full (double-sided), 4.0 = openGrid Lite
+panel_thickness = 6.8; // [6.8, 4.0]
+// Pull-outs side by side (-1 = as few as fit your print bed)
+pullouts = -1;
+// Print bed size; parts are split to fit
+bed_size = 256;
+
+/* [Advanced: hardware] */
+// Side-mount slide thickness = clearance per side (standard 1/2" = 12.7)
+slide_t = 12.7;
+// Slide body height (standard ball-bearing slides are 45)
+slide_h = 45;
 
 /* [Clearances] */
 clear_side = 3;
@@ -56,13 +64,15 @@ clear_front = 0;
 
 /* [Render] */
 show_cabinet = true;
-part = "assembly"; // [assembly, frame, envelope, cabinet, keepouts]
+part = "assembly"; // [assembly, carriage, boards, rails, slides_fixed, slides_moving, cabinet, keepouts, envelope, print]
+// With part = print: which part (index in the PULLGRID part list)
+print_index = 0;
 // Preview only: how far the frame is pulled out (0 = closed, 1 = full slide travel)
 extension = 0; // [0:0.05:1]
 
 /* [Hidden] */
 include <lib/envelope.scad>
-include <lib/frame.scad>
+include <lib/carriage.scad>
 include <lib/cabinet_preview.scad>
 
 // ---------- Auto defaults (v0 guesses — see docs/parameters.md) ----------
@@ -106,39 +116,71 @@ env0 = base_envelope(front_w, front_h, r_w, r_h, interior_depth,
                      o_l, o_r, o_b, o_t, clear_side, clear_top, clear_rear, clear_front);
 solved = apply_keepouts(env0, all_keepouts);
 env = solved[0];
+G = env_valid(env) ? carriage_geometry(env, max(1, panel_count), panel_thickness, slide_t, slide_h,
+                                       bed_size, pullouts) : [];
+fits = env_valid(env) && carriage_valid(G);
+specs = fits ? part_specs(G) : [];
 
 // ---------- Report (the site parses lines starting with PULLGRID) ----------
-standard_slides = [254, 305, 356, 406, 457, 508, 559];  // 10"–22"
-fitting = [for (s = standard_slides) if (s <= env_d(env)) s];
-slide_len = len(fitting) > 0 ? fitting[len(fitting) - 1] : 0;
-layout = frame_layout(env, slide_height, 5, 5, 8, panel_count, panel_thickness);
-
 echo(str("PULLGRID envelope_mm=", [env_w(env), env_d(env), env_h(env)]));
-echo(str("PULLGRID slide_mm=", slide_len));
-echo(str("PULLGRID panel_cells=", [grid_cells(layout[7]), grid_cells(layout[8])], " x", panel_count));
 for (l = solved[1])
     echo(str("PULLGRID keepout=", l[0], " dodged_by=", ko_option_names[l[1]], " label=", keepout_labels[l[0]]));
 echo(str("PULLGRID hinges=", len(hinge_keepouts)));
-if (!env_valid(env)) echo("PULLGRID ERROR no_fit");
-if (slide_len == 0) echo("PULLGRID WARNING no_standard_slide_fits");
-// narrower than this and there's no room for anything on the panels
-MIN_USEFUL_W = 60;
-if (env_valid(env) && env_w(env) < MIN_USEFUL_W) echo("PULLGRID WARNING too_narrow");
+if (!fits) echo("PULLGRID ERROR no_fit");
+if (fits) {
+    N = g(G, "N"); sl = g(G, "slide_len"); nr = g(G, "n_rail");
+    rail_seg = g(G, "rail_len") / nr - 36;
+    screws_per_seg = max(1, ceil(rail_seg / 110)) + 1;
+    echo(str("PULLGRID slide_mm=", sl));
+    echo(str("PULLGRID panel_cells=", [g(G, "ny"), g(G, "nz")], " x", g(G, "panels")));
+    echo(str("PULLGRID pullouts=", N));
+    echo(str("PULLGRID carriage_mm=", [g(G, "Wc"), g(G, "y_r") + g(G, "PT") - g(G, "y0"), g(G, "z_top") - g(G, "zs0")]));
+    // where to put the floor rails: outer face from the interior left wall, front end
+    // behind the front plane, and the gap between the two rail walls
+    echo(str("PULLGRID rails_mm=", [for (x = g(G, "xo")) x], " front=", g(G, "y_f"), " spacing=", g(G, "wp") - 2 * g(G, "RAIL_T")));
+    echo(str("PULLGRID boards_y=", chunks(g(G, "ny")), " boards_z=", chunks(g(G, "nz")),
+             " type=", panel_thickness < 5 ? "lite" : "full"));
+    for (i = seq(len(specs))) let(s = specs[i], sz = print_size(s))
+        echo(str("PULLGRID part=", i, " id=", s[0], " qty=", s[2], " size=", sz, " label=", s[1]));
+    if (sl > 0) echo(str("PULLGRID hw=", N, " item=pair of ", round(sl / 25.4), "in full-extension side-mount slides (", slide_h, " mm tall, 1/2in clearance)"));
+    echo(str("PULLGRID hw=", N * 2 * nr * screws_per_seg, " item=#8 x 3/4in flat-head wood screws (floor rails to cabinet)"));
+    echo(str("PULLGRID hw=", N * 16, " item=#6 x 3/8in pan-head screws (slides to rails and cheeks; often included with slides)"));
+    echo(str("PULLGRID hw=", N * 8, " item=M3 x 16 socket-head screws + M3 hex nuts (plates to base)"));
+    echo("PULLGRID hw=1 item=CA glue or epoxy (bowtie keys)");
+    for (s = specs) let(sz = print_size(s)) if (sz[0] > bed_size || sz[1] > bed_size)
+        echo(str("PULLGRID WARNING part_exceeds_bed ", s[0]));
+    if (sl == 0) echo("PULLGRID WARNING no_standard_slide_fits");
+    if (g(G, "Wc") < 100) echo("PULLGRID WARNING too_narrow");
+}
 
 // ---------- Render ----------
-if (env_valid(env)) {
-    if (part == "frame")
-        color("SteelBlue") frame(env, slide_h = slide_height,
-                                 panel_count = panel_count, panel_t = panel_thickness);
-    if (part == "assembly")
-        translate([0, -extension * slide_len, 0]) color("SteelBlue") frame(env, slide_h = slide_height,
-                                 panel_count = panel_count, panel_t = panel_thickness);
-    if (part == "envelope")
+P = part == "frame" ? "carriage" : part;  // v0 name
+if (fits) {
+    ext = -extension * g(G, "slide_len");
+    for (x = g(G, "xo")) translate([x, 0, 0]) {
+        if (P == "assembly") {
+            color("DimGray") rail_full(G, "L");
+            color("DimGray") rail_full(G, "R");
+            color("Silver") slides_part(G, "outer");
+            translate([0, ext, 0]) {
+                color("SteelBlue") carriage_part(G);
+                color("Gainsboro") boards_part(G);
+                color("Silver") slides_part(G, "inner");
+            }
+        }
+        if (P == "carriage") carriage_part(G);
+        if (P == "boards") boards_part(G);
+        if (P == "rails") { rail_full(G, "L"); rail_full(G, "R"); }
+        if (P == "slides_fixed") slides_part(G, "outer");
+        if (P == "slides_moving") slides_part(G, "inner");
+    }
+    if (P == "print" && print_index >= 0 && print_index < len(specs)) print_part(G, specs[print_index]);
+    if (P == "envelope")
         color("SteelBlue", 0.4) translate([env[0], env[4], env[2]]) cube([env_w(env), env_d(env), env_h(env)]);
 }
-if (part == "assembly" && show_cabinet) {
+if (P == "assembly" && show_cabinet) {
     cabinet_preview(front_w, front_h, r_w, r_h, interior_depth, o_l, o_r, o_b, o_t);
     keepout_preview(all_keepouts);
 }
-if (part == "cabinet") cabinet_preview(front_w, front_h, r_w, r_h, interior_depth, o_l, o_r, o_b, o_t);
-if (part == "keepouts") keepout_preview(all_keepouts);
+if (P == "cabinet") cabinet_preview(front_w, front_h, r_w, r_h, interior_depth, o_l, o_r, o_b, o_t);
+if (P == "keepouts") keepout_preview(all_keepouts);

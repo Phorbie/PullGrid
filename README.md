@@ -4,25 +4,28 @@ Parametric, 3D-printed vertical pull-outs for deep cabinets — with openGrid fa
 
 Wall systems assume a flat wall you stand in front of. Deep cabinets don't have one: they have a face frame narrower than the interior, hinges in the way, and a back half nobody can reach. PullGrid generates a pull-out frame that fits through *your* opening, dodges *your* hinges and plumbing, and brings everything to the front.
 
-![v0 preview](docs/preview-v0.png)
+![PullGrid v1, pulled out](docs/preview.png)
 
 **Try it: [phorbie.github.io/PullGrid](https://phorbie.github.io/PullGrid/)** — runs entirely in your browser.
 
-> **Status: v0 / pre-alpha.** The fit solver works. The frame geometry is a placeholder and has not been printed. Don't print it yet.
+> **Status: v1 beta.** Printable frame with metal slides; every part fits a 256 mm bed. Not yet proven in a real cabinet: print one base segment and dry-fit your slides first.
 
 ## How it works
 
-1. **Describe the cabinet** — opening, depth, face frame or frameless, hinge side. Everything else has sensible defaults ([parameters](docs/parameters.md)).
-2. **Solve the sweep envelope** — the largest box that passes through the opening, fits the interior over its full travel, and misses every keep-out (hinges, pipes, disposal).
-3. **Build the frame** inside that envelope, with panels snapped to whole 28 mm openGrid cells.
+1. **Describe the cabinet**: opening, depth, face frame or frameless, hinge side. Everything else has defaults ([parameters](docs/parameters.md)).
+2. **Solve the sweep envelope**: the largest box that passes through the opening, fits the interior over its full travel, and misses every keep-out (hinges, pipes, disposal).
+3. **Size the frame to whole openGrid cells**, pick the longest standard slide, split wide cabinets into side-by-side pull-outs, and split every part to fit your print bed.
 
-One OpenSCAD source feeds everything:
+## What you build
 
-| Output | What |
+| | |
 |---|---|
-| [Generator site](https://phorbie.github.io/PullGrid/) (`site/`) | OpenSCAD → WASM in the browser, 3D preview, fit report, STL download |
-| MakerWorld / Printables | Same `.scad` in the native customizer + pre-sized common cabinets |
-| This repo | Source, issues, contributions |
+| **Fixed** | Two floor rails, screwed to the cabinet floor, carrying standard 45 mm full-extension ball-bearing slides |
+| **Moving** | Base tray with slide cheeks, front plate with finger slots, ladder-frame rear plate, one dovetailed top rail per panel |
+| **Panels** | Standard [openGrid](https://www.printables.com/model/1214361-opengrid-walldesk-mounting-framework-and-ecosystem) boards (Full is double-sided), held in grooves. Print them from openGrid's own files, so snaps fit exactly |
+| **Joints** | Split parts are glued with printed bowtie keys; the steel slides bridge base and rail seams; plates bolt to the base with M3 + captive nuts |
+
+The generator outputs every part already oriented for printing, the openGrid board list, a hardware list (slides, screws, M3), and install steps with rail placement.
 
 ## Try it
 
@@ -31,6 +34,8 @@ openscad scad/pullgrid.scad                       # open in the GUI, use the Cus
 openscad -o frame.stl -D 'part="frame"' \
   -D 'opening_w=300' -D 'interior_depth=580' scad/pullgrid.scad
 tests/run.sh                                      # smoke tests
+tests/interference.sh                             # no two parts overlap
+tests/print_parts.sh                              # every part exports and fits the bed
 
 # the site, locally
 (cd site && npm ci) && bash site/build.sh && python3 -m http.server -d _site
@@ -42,15 +47,15 @@ Lines starting with `PULLGRID` in the console are the fit report (envelope, slid
 
 ## Roadmap
 
-- [ ] Real openGrid tile geometry on panels (use the openGrid/QuackWorks OpenSCAD libs, don't reinvent)
-- [ ] Slide hardware mounts — pick 2–3 common full-extension slides and model their hole patterns
-- [ ] Fully printed rail option
-- [ ] Split parts to fit print beds (256 mm default)
+- [x] Fit solver: opening, hinges, keep-outs, non-square cabinets
+- [x] Generator site: WASM render, 3D preview, inch/mm with fractions, share links
+- [x] v1 printable frame: metal slides, openGrid panels, bed splitting, parts zip, hardware list
+- [ ] First real print in a real cabinet, then tune auto defaults (face frame overhang, rail height, hinges)
+- [ ] Printed rail option (no metal slides) for light loads
+- [ ] Mid rails at board seams for heavy loads
+- [ ] Lighter parts (front plate and base pocketing)
+- [ ] Guided measuring flow
 - [ ] 20-minute dry-fit outline print
-- [ ] Better keep-out solver (notching around hinges instead of shrinking the whole side)
-- [x] Generator site: WASM render, three.js preview, inch/mm with fractions, share links
-- [ ] Guided measuring flow (step-by-step with diagrams)
-- [ ] First real print in a real cabinet
 
 ## License
 

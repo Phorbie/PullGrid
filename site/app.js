@@ -1,5 +1,5 @@
 // PullGrid generator UI. Geometry lives in scad/ — this file only collects
-// inputs, asks the worker to render, and displays what comes back.
+// inputs, asks the workers to render, and displays what comes back.
 import * as THREE from "three";
 import { OrbitControls } from "./vendor/three/OrbitControls.js";
 import { STLLoader } from "./vendor/three/STLLoader.js";
@@ -12,8 +12,9 @@ const DEFAULTS = {
   offset_left: null, offset_right: null, offset_bottom: null, offset_top: null,
   rear_w: null, rear_h: null, door_intrusion: 0,
   hinges: [], keepouts: [],
-  panel_count: 1, panel_thickness: "6.8",
-  slide_height: 15, clear_side: 3, clear_top: 5, clear_rear: 10,
+  panel_count: 1, panel_thickness: "6.8", pullouts: null, bed_size: "256",
+  slide_t: 12.7, slide_h: 45,
+  clear_side: 3, clear_top: 5, clear_rear: 10,
 };
 const DODGE = {
   left: "narrowed the frame from the left",
@@ -22,16 +23,23 @@ const DODGE = {
   top: "lowered the frame's top",
   back: "shortened the frame from the back",
 };
+// preview parts: [name, moves with the slide?]
+const PREVIEW = [["carriage", true], ["boards", true], ["slides_moving", true],
+                 ["rails", false], ["slides_fixed", false], ["cabinet", false], ["keepouts", false]];
+const PETG = 1.27, FILL = 0.45;  // g/cm³, rough share of solid volume at typical walls/infill
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const clone = (o) => JSON.parse(JSON.stringify(o));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 // ---------- state ----------
 let state = loadState();
 const bad = new Set();
 let report = null;
-let frameStl = null;
+let lastDefines = null;
+let meshVolume = 0;
 let firstFit = true;
 
 function loadState() {
@@ -102,17 +110,20 @@ form.addEventListener("input", (e) => {
 });
 
 function readField(el) {
-  const k = el.dataset.key, kind = el.dataset.kind;
+  const k = el.dataset.key, kind = el.dataset.kind, auto = el.hasAttribute("data-auto");
   let ok = true;
   if (kind === "len") {
     const p = parseLen(el.value, state.unit);
-    if (p.empty && el.hasAttribute("data-auto")) state[k] = null;
+    if (p.empty && auto) state[k] = null;
     else if (p.mm != null && p.mm >= 0) state[k] = p.mm;
     else ok = false;
   } else if (kind === "int") {
-    const n = parseInt(el.value, 10);
-    ok = Number.isInteger(n) && n >= +el.dataset.min && n <= +el.dataset.max;
-    if (ok) state[k] = n;
+    if (!el.value.trim() && auto) state[k] = null;
+    else {
+      const n = parseInt(el.value, 10);
+      ok = Number.isInteger(n) && n >= +el.dataset.min && n <= +el.dataset.max;
+      if (ok) state[k] = n;
+    }
   }
   mark(el, k, ok);
 }
@@ -185,10 +196,32 @@ $("#share").onclick = async (e) => {
   setTimeout(() => (e.target.textContent = "Copy link"), 1600);
 };
 
-// ---------- render pipeline ----------
-const worker = new Worker("./worker.js", { type: "module" });
-let reqId = 0, inflight = false, queued = null, debounce = 0;
+// ---------- workers ----------
+const POOL = Array.from({ length: Math.min(3, Math.max(1, (navigator.hardwareConcurrency || 2) - 1)) },
+  () => new Worker("./worker.js", { type: "module" }));
+let msgId = 0;
+const pending = new Map();
+for (const w of POOL) {
+  w.onmessage = (e) => { const p = pending.get(e.data.id); pending.delete(e.data.id); e.data.ok ? p.resolve(e.data.out) : p.reject(new Error(e.data.error)); };
+  w.onerror = (e) => setStatus("bad", `Couldn't start OpenSCAD: ${e.message || "worker error"}`);
+}
+function runOn(w, defines, parts) {
+  return new Promise((resolve, reject) => {
+    const id = ++msgId;
+    pending.set(id, { resolve, reject });
+    w.postMessage({ id, defines, parts });
+  });
+}
+// spread parts over the pool, merge results
+async function renderParts(defines, parts) {
+  const buckets = POOL.map(() => []);
+  parts.forEach((p, i) => buckets[i % POOL.length].push(p));
+  const outs = await Promise.all(buckets.map((b, i) => (b.length ? runOn(POOL[i], defines, b) : {})));
+  return Object.assign({}, ...outs);
+}
 
+// ---------- render pipeline ----------
+let inflight = false, queued = null, debounce = 0;
 const r2 = (v) => Math.round(v * 100) / 100;
 const L = (v) => (v == null ? -1 : r2(v));
 function defines(s) {
@@ -201,49 +234,51 @@ function defines(s) {
     hinges: `[${s.hinges.map((h) => `[${r2(h.z)},${r2(h.intrusion)},50,45]`).join(",")}]`,
     keepouts: `[${s.keepouts.map((k) => `[${[k.x, k.y, k.z, k.w, k.d, k.h].map(r2).join(",")}]`).join(",")}]`,
     panel_count: s.panel_count, panel_thickness: s.panel_thickness,
-    slide_height: L(s.slide_height), clear_side: L(s.clear_side), clear_top: L(s.clear_top), clear_rear: L(s.clear_rear),
+    pullouts: s.pullouts == null ? -1 : s.pullouts, bed_size: s.bed_size,
+    slide_t: L(s.slide_t), slide_h: L(s.slide_h),
+    clear_side: L(s.clear_side), clear_top: L(s.clear_top), clear_rear: L(s.clear_rear),
   };
 }
 
 function changed() {
   saveState();
-  if (bad.size) {
-    setStatus("bad", "Fix the highlighted fields");
-    return;
-  }
+  if (bad.size) { setStatus("bad", "Fix the highlighted fields"); return; }
   clearTimeout(debounce);
   debounce = setTimeout(requestRender, 250);
 }
 function requestRender() {
   const d = defines(state);
   if (inflight) { queued = d; return; }
-  send(d);
+  run(d);
 }
-function send(d) {
+async function run(d) {
   inflight = true;
   $("#busy").hidden = false;
-  worker.postMessage({ id: ++reqId, defines: d, parts: ["frame", "cabinet", "keepouts"] });
-}
-worker.onmessage = (e) => {
+  try {
+    const out = await renderParts(d, PREVIEW.map((p) => p[0]));
+    if (!queued) apply(d, out);
+  } catch (err) {
+    setStatus("bad", `Render failed: ${err.message}`);
+  }
   inflight = false;
-  if (queued) { const q = queued; queued = null; send(q); } else $("#busy").hidden = true;
-  const msg = e.data;
-  if (!msg.ok) { setStatus("bad", `Render failed: ${msg.error}`); return; }
-  const { frame, cabinet, keepouts } = msg.out;
-  report = parseReport(frame.log);
-  frameStl = report.fits ? frame.stl : null;
-  setPart("frame", frameStl);
-  setPart("cabinet", cabinet.stl);
-  setPart("keepouts", keepouts.stl);
+  if (queued) { const q = queued; queued = null; run(q); } else $("#busy").hidden = true;
+}
+function apply(d, out) {
+  report = parseReport(out.carriage.log);
+  lastDefines = d;
+  meshVolume = 0;
+  for (const [name] of PREVIEW) {
+    const v = setPart(name, report.fits ? out[name].stl : name === "cabinet" || name === "keepouts" ? out[name].stl : null);
+    if (name === "carriage" || name === "rails") meshVolume += v;
+  }
   applyExtension();
   if (firstFit) { fitView(); firstFit = false; }
   showReport();
   hingeHint();
-};
-worker.onerror = (e) => setStatus("bad", `Couldn't start OpenSCAD: ${e.message || "worker error"}`);
+}
 
 function parseReport(log) {
-  const r = { keepouts: [], errors: [], warnings: [], scadErrors: [] };
+  const r = { keepouts: [], errors: [], warnings: [], scadErrors: [], parts: [], hw: [] };
   for (const line of log) {
     if (/^ERROR:/.test(line)) r.scadErrors.push(line);
     const m = line.match(/PULLGRID (.*?)"?$/);
@@ -253,6 +288,15 @@ function parseReport(log) {
     if ((x = t.match(/^envelope_mm=\[([^\]]+)\]/))) r.env = x[1].split(",").map(Number);
     else if ((x = t.match(/^slide_mm=(\d+)/))) r.slide = +x[1];
     else if ((x = t.match(/^panel_cells=\[(\d+), (\d+)\] x(\d+)/))) r.cells = [+x[1], +x[2], +x[3]];
+    else if ((x = t.match(/^pullouts=(\d+)/))) r.pullouts = +x[1];
+    else if ((x = t.match(/^carriage_mm=\[([^\]]+)\]/))) r.carriage = x[1].split(",").map(Number);
+    else if ((x = t.match(/^rails_mm=\[([^\]]*)\] front=([\d.]+) spacing=([\d.]+)/)))
+      r.rails = { xs: x[1].split(",").map(Number), front: +x[2], spacing: +x[3] };
+    else if ((x = t.match(/^boards_y=\[([^\]]*)\] boards_z=\[([^\]]*)\] type=(\w+)/)))
+      r.boards = { y: x[1].split(",").map(Number), z: x[2].split(",").map(Number), type: x[3] };
+    else if ((x = t.match(/^part=(\d+) id=(\S+) qty=(\d+) size=\[([^\]]+)\] label=(.*)$/)))
+      r.parts.push({ index: +x[1], id: x[2], qty: +x[3], size: x[4].split(",").map(Number), label: x[5] });
+    else if ((x = t.match(/^hw=(\d+) item=(.*)$/))) r.hw.push({ qty: +x[1], item: x[2] });
     else if ((x = t.match(/^keepout=(\d+) dodged_by=(\w+) label=(.*)$/))) r.keepouts.push({ by: x[2], label: x[3] });
     else if ((x = t.match(/^hinges=(\d+)/))) r.hinges = +x[1];
     else if (t.startsWith("ERROR")) r.errors.push(t.slice(6));
@@ -268,41 +312,172 @@ function setStatus(kind, text) {
   s.className = `status ${kind}`;
   s.textContent = text;
 }
+const inch = (s) => s.replace(/(\d+)in\b/g, "$1″");
 function showReport() {
-  const dl = $("#facts"), ul = $("#tradeoffs"), dlBtn = $("#download");
+  const dl = $("#facts"), ul = $("#tradeoffs"), build = $("#build");
   if (!report) return;
   dl.innerHTML = ""; ul.innerHTML = "";
-  dlBtn.disabled = !report.fits;
+  build.hidden = !report.fits;
   if (report.scadErrors.length) { setStatus("bad", "OpenSCAD error"); ul.innerHTML = report.scadErrors.map((e) => `<li>${esc(e)}</li>`).join(""); return; }
   if (!report.fits) {
     setStatus("bad", "Doesn't fit");
-    ul.innerHTML = `<li>After hinges, rails and clearances there's no room left. Check the opening width and hinge settings.</li>`;
+    ul.innerHTML = `<li>After hinges, rails, slides and clearances there's no room for a pull-out with at least one openGrid cell. Check the opening and hinge settings.</li>`;
     return;
   }
-  const [w, d, h] = report.env;
-  if (report.warnings.includes("too_narrow")) setStatus("warn", `Fits, but only ${fmt(w)} wide: too narrow to hold much`);
-  else if (report.warnings.includes("no_standard_slide_fits")) setStatus("warn", "Fits, but it's shallower than the shortest standard slide (10″)");
+  const [w, d, h] = report.env, W = report.warnings;
+  if (W.includes("too_narrow")) setStatus("warn", "Fits, but the pull-out is narrow: room for slim items only");
+  else if (W.includes("no_standard_slide_fits")) setStatus("warn", "Fits, but it's shallower than the shortest standard slide (10″)");
+  else if (W.some((x) => x.startsWith("part_exceeds_bed"))) setStatus("warn", "Fits, but some parts are bigger than your print bed");
   else setStatus("good", "Fits");
   const row = (k, v, a = "") => `<dt>${k}</dt><dd>${v}${a ? `<span class="alt">${a}</span>` : ""}</dd>`;
+  const c = report.carriage, n = report.pullouts;
   dl.innerHTML =
     row("Usable space", `${fmt(w)} W × ${fmt(d)} D × ${fmt(h)} H`) +
+    (c ? row(n > 1 ? `${n} pull-outs, each` : "Pull-out", `${fmt(c[0])} W × ${fmt(c[1])} D × ${fmt(c[2])} H`) : "") +
     (report.slide ? row("Slides", `${Math.round(report.slide / MM)}″ full-extension`, `${report.slide} mm`) : "") +
-    (report.cells ? row("openGrid panels", `${report.cells[2]} × ${report.cells[0]} × ${report.cells[1]} cells`, `${fmt(report.cells[0] * 28)} × ${fmt(report.cells[1] * 28)} each`) : "") +
+    (report.cells ? row("openGrid", `${report.cells[2]} panel${report.cells[2] > 1 ? "s" : ""}${n > 1 ? " per pull-out" : ""}, ${report.cells[0]} × ${report.cells[1]} cells`, `${fmt(report.cells[0] * 28)} × ${fmt(report.cells[1] * 28)}`) : "") +
     row("Hinges", state.hinges.length ? `${state.hinges.length} custom` : state.hinge_side === "none" ? "none" : `${report.hinges} auto`);
   ul.innerHTML = report.keepouts.map((k) => `<li><strong>${esc(cap(k.label))}</strong>: ${DODGE[k.by] || k.by}</li>`).join("");
+  showBuild();
 }
-const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
-const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
-$("#download").onclick = () => {
-  if (!frameStl || !report?.env) return;
-  const [w, d, h] = report.env.map(Math.round);
+function showBuild() {
+  const r = report, n = r.pullouts || 1;
+  // parts
+  // group split pieces into families: "Base 1/3", "Base 2/3" → Base, 3 pieces
+  const fam = new Map();
+  for (const p of r.parts) {
+    const k = p.label.replace(/ \d+\/\d+$/, "");
+    if (!fam.has(k)) fam.set(k, []);
+    fam.get(k).push(p);
+  }
+  const keys = r.parts.filter((p) => p.id === "key").reduce((a, p) => a + p.qty, 0);
+  const pieces = r.parts.filter((p) => p.id !== "key").reduce((a, p) => a + p.qty, 0);
+  const kg = (meshVolume / 1000) * PETG * FILL / 1000;
+  $("#print-sum").textContent = `${pieces} pieces${keys ? ` + ${keys} keys` : ""} · roughly ${kg >= 1 ? kg.toFixed(1) + " kg" : Math.round(kg * 1000) + " g"} of PETG`;
+  $("#parts").innerHTML = [...fam].map(([k, ps]) => {
+    const q = ps[0].qty, big = ps.reduce((m, p) => (p.size[1] > m.size[1] ? p : m), ps[0]);
+    const what = ps.length > 1 ? `${esc(k)} <span class="hint">in ${ps.length} pieces</span>` : esc(k);
+    const btns = ps.map((p, i) => `<button type="button" data-part="${p.index}" title="${esc(p.label)}">${ps.length > 1 ? i + 1 : ".stl"}</button>`).join(" ");
+    return `<tr><td class="n">${q}×</td><td>${what}</td><td class="sz">${fmt(big.size[0])} × ${fmt(big.size[1])}</td><td class="btns">${btns}</td></tr>`;
+  }).join("");
+  // boards
+  const b = r.boards;
+  if (b) {
+    const per = b.y.length * b.z.length, panels = (r.cells?.[2] || 1) * n;
+    const counts = {};
+    for (const y of b.y) for (const z of b.z) counts[`${y} × ${z}`] = (counts[`${y} × ${z}`] || 0) + panels;
+    const cell = 5;
+    const grid = `<div class="bgrid" style="grid-template-columns:${b.y.map((y) => y * cell + "px").join(" ")};grid-template-rows:${[...b.z].reverse().map((z) => z * cell + "px").join(" ")}">` +
+      [...b.z].reverse().map((z) => b.y.map((y) => `<span>${y}×${z}</span>`).join("")).join("") + "</div>";
+    $("#boards").innerHTML =
+      `<p>${per * panels} ${b.type === "full" ? "Full" : "Lite"} boards: ${per} per panel × ${panels} panel${panels > 1 ? "s" : ""}. Sizes in cells, wide × tall (front-to-back × up):</p>` +
+      grid + `<ul class="hw">${Object.entries(counts).map(([k, v]) => `<li><b>${v}×</b> ${k} cells</li>`).join("")}<li>openGrid connector pegs for the board seams</li></ul>`;
+  }
+  // hardware
+  $("#hw").innerHTML = r.hw.map((h) => `<li><b>${h.qty}×</b> ${esc(inch(h.item))}</li>`).join("");
+  // install
+  const rl = r.rails;
+  $("#steps").innerHTML = [
+    "Glue the split parts with the bowtie keys: base segments from underneath, plate segments on the inside face, top-rail segments on top. Let them cure.",
+    "Unclip each slide. Screw the inner members to the base cheeks, front ends flush with the front of the base.",
+    "Drop M3 nuts into the cheek slots and bolt the front and rear plates on (M3 × 16).",
+    "Slide the openGrid boards down into the grooves, then drop each top rail into its dovetails.",
+    rl ? `Screw the outer slide members to the floor rails. Set the rails ${fmt(rl.spacing)} apart (inside faces of the walls)${rl.xs.length === 1 ? `, the left one ${fmt(rl.xs[0])} from the cabinet's left wall` : `, left rails at ${rl.xs.map((x) => fmt(x)).join(", ")} from the left wall`}, front ends ${fmt(rl.front)} behind the opening.` : "",
+    "Clip the carriage onto the rails to check alignment, mark the rails, unclip it, and screw the rails to the floor.",
+    "Clip the carriage back in. Snap openGrid accessories onto both sides.",
+  ].filter(Boolean).map((s) => `<li>${s}</li>`).join("");
+}
+
+// ---------- downloads ----------
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(d) { let c = 0xffffffff; for (let i = 0; i < d.length; i++) c = CRC[(c ^ d[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+function zip(files) {  // store-only zip, plenty for STLs
+  const enc = new TextEncoder(), chunks = [], central = [];
+  let off = 0;
+  for (const f of files) {
+    const name = enc.encode(f.name), d = f.data, crc = crc32(d);
+    const h = new DataView(new ArrayBuffer(30));
+    [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [12, 0x21, 2], [14, crc, 4], [18, d.length, 4], [22, d.length, 4], [26, name.length, 2]]
+      .forEach(([o, v, s]) => (s === 4 ? h.setUint32(o, v, true) : h.setUint16(o, v, true)));
+    chunks.push(new Uint8Array(h.buffer), name, d);
+    const c = new DataView(new ArrayBuffer(46));
+    [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [14, 0x21, 2], [16, crc, 4], [20, d.length, 4], [24, d.length, 4], [28, name.length, 2], [42, off, 4]]
+      .forEach(([o, v, s]) => (s === 4 ? c.setUint32(o, v, true) : c.setUint16(o, v, true)));
+    central.push(new Uint8Array(c.buffer), name);
+    off += 30 + name.length + d.length;
+  }
+  const size = central.reduce((a, b) => a + b.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+  e.setUint32(12, size, true); e.setUint32(16, off, true);
+  return new Blob([...chunks, ...central, new Uint8Array(e.buffer)], { type: "application/zip" });
+}
+function save(blob, name) {
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([frameStl], { type: "model/stl" }));
-  a.download = `pullgrid-${w}x${d}x${h}mm.stl`;
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
   a.click();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+const slug = () => { const c = report.carriage.map(Math.round); return `pullgrid-${c[0]}x${c[1]}x${c[2]}`; };
+
+$("#parts").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-part]");
+  if (!b || !lastDefines) return;
+  const p = report.parts.find((x) => x.index === +b.dataset.part);
+  const label = b.textContent;
+  b.textContent = "…";
+  const out = await renderParts(lastDefines, [`print:${p.index}`]);
+  b.textContent = label;
+  save(new Blob([out[`print:${p.index}`].stl], { type: "model/stl" }), `${slug()}-${p.id}.stl`);
+});
+
+$("#download").onclick = async () => {
+  if (!report?.fits || !lastDefines) return;
+  const btn = $("#download"), st = $("#dl-status"), d = lastDefines, parts = report.parts;
+  btn.disabled = true;
+  st.textContent = `Rendering ${parts.length} parts…`;
+  try {
+    const out = await renderParts(d, parts.map((p) => `print:${p.index}`));
+    const files = parts.map((p, i) => ({
+      name: `${String(i + 1).padStart(2, "0")}-${p.id}-x${p.qty}.stl`,
+      data: out[`print:${p.index}`].stl,
+    }));
+    files.push({ name: "README.txt", data: new TextEncoder().encode(readme()) });
+    save(zip(files), `${slug()}.zip`);
+    st.textContent = `Downloaded ${parts.length} parts. Quantities are in the file names.`;
+  } catch (err) {
+    st.textContent = `Download failed: ${err.message}`;
+  }
+  btn.disabled = false;
 };
+
+function readme() {
+  const r = report, txt = (el) => $$("li", el).map((li) => "- " + li.textContent).join("\n");
+  return [
+    "PullGrid by Phorbie Designs — CC BY-SA 4.0",
+    "https://phorbie.github.io/PullGrid/",
+    "",
+    `Settings link: ${location.origin}${location.pathname}#${encodeURIComponent(JSON.stringify(state))}`,
+    "",
+    "PRINT (quantity is in each file name, e.g. -x2)",
+    "PETG or PETG-GF. 4 walls, 25% gyroid. Rails and base: 5 walls (they hold screws).",
+    "Plates print face-down, top rails cap-down. Everything is already oriented.",
+    ...r.parts.map((p) => `- ${p.qty}x ${p.label}  (${p.size[0]} x ${p.size[1]} x ${p.size[2]} mm)`),
+    "",
+    "OPENGRID BOARDS (print from openGrid's own files)",
+    $("#boards p")?.textContent || "",
+    txt($("#boards")),
+    "",
+    "BUY",
+    txt($("#hw")),
+    "",
+    "INSTALL",
+    $$("#steps li").map((li, i) => `${i + 1}. ${li.textContent}`).join("\n"),
+    "",
+  ].join("\n");
+}
 
 // ---------- 3D view (scad coordinates: x across, y depth, z up) ----------
 const viewer = $("#viewer");
@@ -325,45 +500,57 @@ grid.position.z = -4;
 scene.add(grid);
 
 const loader = new STLLoader();
-const groups = { frame: new THREE.Group(), cabinet: new THREE.Group(), keepouts: new THREE.Group() };
-for (const g of Object.values(groups)) scene.add(g);
+const moving = new THREE.Group();
+scene.add(moving);
+const groups = {};
+for (const [name, moves] of PREVIEW) { groups[name] = new THREE.Group(); (moves ? moving : scene).add(groups[name]); }
+const std = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...extra });
+const ghost = { transparent: true, depthWrite: false };
 const mats = {
-  frame: new THREE.MeshStandardMaterial({ color: 0x2f6d9c, roughness: 0.55 }),
-  cabinet: new THREE.MeshStandardMaterial({ color: 0xc9a77a, roughness: 0.9, transparent: true, opacity: 0.2, depthWrite: false, side: THREE.DoubleSide }),
-  keepouts: new THREE.MeshStandardMaterial({ color: 0xc8324f, transparent: true, opacity: 0.6, depthWrite: false }),
+  carriage: std(0x2f6d9c), boards: std(0xd6d2c8, { roughness: 0.8 }),
+  slides_moving: std(0x9aa0a6, { metalness: 0.5, roughness: 0.4 }), slides_fixed: std(0x9aa0a6, { metalness: 0.5, roughness: 0.4 }),
+  rails: std(0x4c5866), cabinet: std(0xc9a77a, { ...ghost, opacity: 0.2, roughness: 0.9, side: THREE.DoubleSide }),
+  keepouts: std(0xc8324f, { ...ghost, opacity: 0.6 }),
 };
-const edges = {
-  frame: new THREE.LineBasicMaterial({ color: 0x163650 }),
-  cabinet: new THREE.LineBasicMaterial({ color: 0x8a6d48, transparent: true, opacity: 0.55 }),
-  keepouts: new THREE.LineBasicMaterial({ color: 0x8e1c33 }),
-};
+const edgeColor = { carriage: 0x163650, boards: 0x9a9488, slides_moving: 0x5f6368, slides_fixed: 0x5f6368, rails: 0x252c33, cabinet: 0x8a6d48, keepouts: 0x8e1c33 };
+
+function stlVolume(geo) {  // cm³·1000 = mm³; signed tetrahedra
+  const p = geo.attributes.position.array;
+  let v = 0;
+  for (let i = 0; i < p.length; i += 9)
+    v += (p[i] * (p[i + 4] * p[i + 8] - p[i + 5] * p[i + 7]) - p[i + 1] * (p[i + 3] * p[i + 8] - p[i + 5] * p[i + 6]) + p[i + 2] * (p[i + 3] * p[i + 7] - p[i + 4] * p[i + 6])) / 6;
+  return Math.abs(v);
+}
 function setPart(name, stl) {
   const g = groups[name];
   for (const c of g.children) c.geometry.dispose();
   g.clear();
-  if (!stl || stl.byteLength < 134) return;
+  if (!stl || stl.byteLength < 134) return 0;
   const geo = loader.parse(stl.buffer.slice(stl.byteOffset, stl.byteOffset + stl.byteLength));
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, mats[name]);
-  const line = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25), edges[name]);
-  if (name !== "frame") mesh.renderOrder = line.renderOrder = name === "keepouts" ? 2 : 3;
+  const line = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25),
+    new THREE.LineBasicMaterial({ color: edgeColor[name], transparent: name === "cabinet", opacity: name === "cabinet" ? 0.55 : 1 }));
+  if (name === "keepouts") mesh.renderOrder = line.renderOrder = 2;
+  if (name === "cabinet") mesh.renderOrder = line.renderOrder = 3;
   g.add(mesh, line);
+  return stlVolume(geo);
 }
 
 const ext = $("#extension");
 function applyExtension() {
-  const travel = report?.slide || report?.env?.[1] || 0;
-  groups.frame.position.y = -(ext.value / 100) * travel;
+  const travel = report?.slide || report?.carriage?.[1] || 0;
+  moving.position.y = -(ext.value / 100) * travel;
 }
 ext.oninput = applyExtension;
 
 function fitView() {
   // frame it all: the cabinet plus the pull-out at full travel
   const box = new THREE.Box3().setFromObject(groups.cabinet);
-  const fb = new THREE.Box3().setFromObject(groups.frame);
+  const fb = new THREE.Box3().setFromObject(moving);
   if (!fb.isEmpty()) {
-    const travel = report?.slide || report?.env?.[1] || 0;
-    fb.translate(new THREE.Vector3(0, -groups.frame.position.y - travel, 0));  // closed → fully out
+    const travel = report?.slide || 0;
+    fb.translate(new THREE.Vector3(0, -moving.position.y - travel, 0));
     box.union(fb);
   }
   if (box.isEmpty()) return;

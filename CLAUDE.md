@@ -5,6 +5,8 @@
 - Units are mm internally. Inches are a UI concern.
 - Customizer params live at the top of `scad/pullgrid.scad`, grouped Basic / Advanced / Expert. Hide inputs, never the data model: advanced params default from basic ones (`-1` = auto).
 - The site reads `echo` lines prefixed `PULLGRID`. Changing their format is a breaking change.
-- Run `tests/run.sh` before committing geometry changes. CI runs it too.
+- Run `tests/run.sh`, `tests/interference.sh` and `tests/print_parts.sh` before committing geometry changes. CI runs all three. Interference counts zero-volume face contact as OK.
+- Frame layout lives in a key/value list `G` from `carriage_geometry()`; read it with `g(G, "key")`. Modules take `G`, never globals.
+- The site renders with `--backend=manifold` (~40x faster than CGAL). Desktop 2021.01 uses CGAL, so keep CSG simple.
+- openGrid pitch is 28 mm. Tiles are NOT modeled: the frame holds standard boards in grooves. The popular openGrid tile generator is CC BY-NC-SA, which conflicts with our CC BY-SA, so don't copy from it.
 - Site (`site/`): plain ES modules, no bundler. `site/build.sh` assembles `_site/` and vendors OpenSCAD WASM + three.js from npm. The worker passes `-D` values verbatim, so strings need quotes.
-- openGrid pitch is 28 mm. Reuse the openGrid OpenSCAD libraries for tile geometry instead of re-modeling it.

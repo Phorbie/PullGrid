@@ -16,6 +16,8 @@ jobs:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq openscad
       - run: tests/run.sh
+      - run: tests/interference.sh
+      - run: tests/print_parts.sh
 
   deploy:
     needs: test

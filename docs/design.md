@@ -24,6 +24,19 @@ The code targets **OpenSCAD 2021.01**, because MakerWorld's customizer lags behi
 4. **Carriage layout** (`lib/carriage.scad`, `carriage_geometry()`), per tier, in **tier-local coordinates** (z = 0 is what the rails stand on): splits wide envelopes into side-by-side pull-outs, sizes the frame to whole openGrid cells, picks the slide length and angle size, and places tie rods and door brackets. The result is a key/value list `G`, read with `g(G, "key")`. Modules take `G` and never read globals. With a mounted door the tiers are solved three times: alone, then with a shared front plane, then with a shared slide length and angle size.
 5. **Parts** (`part_specs()`): each part family is split along one axis to fit the bed. Each spec carries its assembled bounding box and a print rotation, so `print_part()` can slice, rotate and drop it onto z = 0. Specs from every tier are grouped by a **shape signature** (`part_sig()`, everything relative to the part itself), so a base that every tier shares is one file, not one per tier.
 
+## The Bambu Studio project
+
+`site/threemf.js` turns the print STLs into a Bambu Studio / OrcaSlicer project 3MF. It computes no geometry: parts arrive from OpenSCAD already oriented and split, and it only lays them out on plates (`packPlates()`). What Bambu Studio needs to load more than geometry comes from its loader source (`Plater.cpp`, `bbs_3mf.cpp`):
+
+- `Application` metadata starting `BambuStudio-`. We claim 2.0.0, so any 2.x app loads it without a "newer file" prompt.
+- A project config that only **names** Bambu's system presets and marks nothing as changed. Studio fills every value from its own presets.
+- Plates in `model_settings.config`, with each instance placed inside its plate on Studio's grid (plates are rebuilt from position). Per-object `wall_loops` and infill.
+- At most 36 plates per file.
+
+The carriage splits wide pieces short enough to sit above the 18 × 28 mm calibration corner on P1 and X1 beds (`SPLIT_MAX` in `carriage_geometry()`), so the layout never has to put a part there.
+
+`tests/threemf.sh <printer>` builds the project exactly as the site does and checks it with `tests/threemf_check.py`: references, instance counts, plate membership and bounds, overlaps, the corner, watertight meshes and the preset names. It can't open the file in Bambu Studio itself, so a real-app check is still worth doing after format changes.
+
 ## The report
 
 OpenSCAD `echo` lines starting with `PULLGRID` are the interface between the model and the site:
@@ -52,6 +65,7 @@ tests/run.sh            # smoke tests: 50+ cabinets and modes, checks report lin
 tests/interference.sh   # every pair of parts must not overlap; tie rods must thread every hole;
                         # nothing in any tier may hit a keep-out or shelf
 tests/print_parts.sh    # every print part exports, sits on z = 0 and fits the bed
+tests/threemf.sh p1s    # the Bambu Studio project builds, and every part lands on its plate
 ```
 
 The interference test intersects pairs of parts and measures the result's volume. Part pairs use one tier (`-D test_tier=k` picks which); the whole-cabinet pairs use every tier in cabinet coordinates. Zero-volume face contact is fine; anything over 1 mm³ is a collision. All three suites accept extra `-D` arguments, so you can run them against any configuration, and CI runs all three.

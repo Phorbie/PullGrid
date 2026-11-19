@@ -247,7 +247,11 @@
       <div class="report" id="build" hidden>
         <div class="buildhead">
           <h2>What to make</h2>
-          <button type="button" id="download" class="primary">Download all parts (.zip)</button>
+          <div class="dl">
+            <label class="printer"><span>Printer</span> <select id="printer" aria-label="Your printer"></select></label>
+            <button type="button" id="download3mf" class="ghost">Bambu Studio project (.3mf)</button>
+            <button type="button" id="download" class="primary">Download all parts (.zip)</button>
+          </div>
         </div>
         <p class="hint" id="dl-status"></p>
         <h3>Print <span class="hint" id="print-sum"></span> <span class="hint"><a href="docs/printing.html">settings</a></span></h3>

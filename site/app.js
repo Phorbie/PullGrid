@@ -3,6 +3,8 @@
 import * as THREE from "three";
 import { OrbitControls } from "./vendor/three/OrbitControls.js";
 import { STLLoader } from "./vendor/three/STLLoader.js";
+import { zipBytes } from "./zip.js";
+import { build3mf, printersForBed, defaultPrinter } from "./threemf.js";
 
 const MM = 25.4;
 const DEFAULTS = {
@@ -14,7 +16,7 @@ const DEFAULTS = {
   offset_left: null, offset_right: null, offset_bottom: null, offset_top: null,
   rear_w: null, rear_h: null, door_intrusion: 0,
   hinges: [], keepouts: [], shelves: [], shelf_thickness: 19, shelf_setback: 0,
-  door_opens: "past_90", reach_from: "auto",
+  door_opens: "past_90", reach_from: "auto", printer: null,
   panel_count: 1, panel_thickness: "6.8", pullouts: null, bed_size: "256",
   slide_t: 13, slide_h: 45,
   clear_side: 3, clear_top: 5, clear_rear: 10,
@@ -424,6 +426,7 @@ function showReport() {
 
 function showBuild() {
   const r = report, n = r.pullouts || 1;
+  fillPrinters();
   // parts
   // group split pieces into families: "Base 1/3", "Base 2/3" → Base, 3 pieces
   const fam = new Map();
@@ -502,29 +505,6 @@ function showBuild() {
 }
 
 // ---------- downloads ----------
-const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
-function crc32(d) { let c = 0xffffffff; for (let i = 0; i < d.length; i++) c = CRC[(c ^ d[i]) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
-function zip(files) {  // store-only zip, plenty for STLs
-  const enc = new TextEncoder(), chunks = [], central = [];
-  let off = 0;
-  for (const f of files) {
-    const name = enc.encode(f.name), d = f.data, crc = crc32(d);
-    const h = new DataView(new ArrayBuffer(30));
-    [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [12, 0x21, 2], [14, crc, 4], [18, d.length, 4], [22, d.length, 4], [26, name.length, 2]]
-      .forEach(([o, v, s]) => (s === 4 ? h.setUint32(o, v, true) : h.setUint16(o, v, true)));
-    chunks.push(new Uint8Array(h.buffer), name, d);
-    const c = new DataView(new ArrayBuffer(46));
-    [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [14, 0x21, 2], [16, crc, 4], [20, d.length, 4], [24, d.length, 4], [28, name.length, 2], [42, off, 4]]
-      .forEach(([o, v, s]) => (s === 4 ? c.setUint32(o, v, true) : c.setUint16(o, v, true)));
-    central.push(new Uint8Array(c.buffer), name);
-    off += 30 + name.length + d.length;
-  }
-  const size = central.reduce((a, b) => a + b.length, 0);
-  const e = new DataView(new ArrayBuffer(22));
-  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
-  e.setUint32(12, size, true); e.setUint32(16, off, true);
-  return new Blob([...chunks, ...central, new Uint8Array(e.buffer)], { type: "application/zip" });
-}
 function save(blob, name) {
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -545,27 +525,77 @@ $("#parts").addEventListener("click", async (e) => {
   save(new Blob([out[`print:${p.index}`].stl], { type: "model/stl" }), `${slug()}-${p.id}.stl`);
 });
 
+// every print part, rendered once per settings
+let printCache = null;
+async function renderPrints() {
+  const key = JSON.stringify(lastDefines);
+  if (printCache?.key === key) return printCache.out;
+  const out = await renderParts(lastDefines, report.parts.map((p) => `print:${p.index}`));
+  printCache = { key, out };
+  return out;
+}
+const printerId = () => state.printer && printersForBed(state.bed_size).some((p) => p.id === state.printer) ? state.printer
+  : state.printer === "none" ? "none" : defaultPrinter(state.bed_size);
+async function projectFiles(out) {
+  if (printerId() === "none") return [];
+  const parts = report.parts.map((p) => ({ ...p, stl: out[`print:${p.index}`].stl }));
+  const { files } = await build3mf(parts, {
+    printer: printerId(), base: slug(),
+    title: `PullGrid ${report.carriage.map((v) => Math.round(v)).join(" x ")} mm`,
+    description: "PullGrid by Phorbie Designs. Print plate 1 first and test-fit it (https://phorbie.github.io/PullGrid/docs/printing.html#test-print-first). Settings: PETG or PETG-GF, 0.2 mm layers; walls and infill are set per part.",
+  });
+  return files;
+}
+function fillPrinters() {
+  const sel = $("#printer"), list = printersForBed(state.bed_size), cur = printerId();
+  sel.innerHTML = list.map((p) => `<option value="${p.id}">Bambu ${esc(p.label)}</option>`).join("") + `<option value="none">Other printer (STLs only)</option>`;
+  sel.value = cur;
+  $("#download3mf").hidden = cur === "none";
+}
+$("#printer").onchange = (e) => { state.printer = e.target.value; saveState(); fillPrinters(); };
+
 $("#download").onclick = async () => {
   if (!report?.fits || !lastDefines) return;
-  const btn = $("#download"), st = $("#dl-status"), d = lastDefines, parts = report.parts;
+  const btn = $("#download"), st = $("#dl-status"), parts = report.parts;
   btn.disabled = true;
   st.textContent = `Rendering ${parts.length} parts…`;
   try {
-    const out = await renderParts(d, parts.map((p) => `print:${p.index}`));
+    const out = await renderPrints();
     const files = parts.map((p, i) => ({
       name: `${String(i + 1).padStart(2, "0")}-${p.id}-x${p.qty}.stl`,
       data: out[`print:${p.index}`].stl,
     }));
-    files.push({ name: "README.txt", data: new TextEncoder().encode(readme()) });
-    save(zip(files), `${slug()}.zip`);
-    st.textContent = `Downloaded ${parts.length} parts. Quantities are in the file names.`;
+    const projects = await projectFiles(out);
+    for (const f of projects) files.push({ name: f.name, data: f.bytes });
+    files.push({ name: "README.txt", data: new TextEncoder().encode(readme(projects)) });
+    save(new Blob([await zipBytes(files)], { type: "application/zip" }), `${slug()}.zip`);
+    st.textContent = `Downloaded ${parts.length} parts${projects.length ? ` and ${projects.length > 1 ? `${projects.length} Bambu Studio projects` : "a Bambu Studio project"}` : ""}. Quantities are in the file names.`;
   } catch (err) {
     st.textContent = `Download failed: ${err.message}`;
   }
   btn.disabled = false;
 };
 
-function readme() {
+$("#download3mf").onclick = async () => {
+  if (!report?.fits || !lastDefines) return;
+  const btn = $("#download3mf"), st = $("#dl-status"), label = btn.textContent;
+  btn.disabled = true;
+  st.textContent = `Rendering ${report.parts.length} parts…`;
+  try {
+    const files = await projectFiles(await renderPrints());
+    if (files.length === 1) save(new Blob([files[0].bytes], { type: "model/3mf" }), files[0].name);
+    else save(new Blob([await zipBytes(files.map((f) => ({ name: f.name, data: f.bytes })), { compress: false })], { type: "application/zip" }), `${slug()}-bambu.zip`);
+    const n = files.reduce((a, f) => a + f.plates.length, 0);
+    st.textContent = files.length === 1 ? `Bambu Studio project: ${n} plates. Print plate 1 first.`
+      : `${n} plates in ${files.length} projects (Bambu Studio allows 36 per project). Print plate 1 of the first one first.`;
+  } catch (err) {
+    st.textContent = `Download failed: ${err.message}`;
+  }
+  btn.disabled = false;
+  btn.textContent = label;
+};
+
+function readme(projects = []) {
   const r = report, txt = (el) => $$("li", el).map((li) => "- " + li.textContent).join("\n");
   return [
     "PullGrid by Phorbie Designs — CC BY-SA 4.0",
@@ -574,6 +604,12 @@ function readme() {
     "",
     `Settings link: ${location.origin}${location.pathname}#${encodeURIComponent(JSON.stringify(state))}`,
     "",
+    ...(projects.length ? [
+      "BAMBU STUDIO / ORCASLICER",
+      `Open ${projects.map((f) => f.name).join(", then ")}: every part is laid out on plates with walls and infill set per part.`,
+      "Print plate 1 (one base piece) first and test-fit it: https://phorbie.github.io/PullGrid/docs/printing.html#test-print-first",
+      "Your printer isn't the one in the file? Pick yours in the printer list; the plates and per-part settings carry over.",
+      ""] : []),
     "PRINT (quantity is in each file name, e.g. -x2)",
     "PETG or PETG-GF. 4 walls, 25% gyroid. Base and any printed rails: 5 walls (they hold screws).",
     "Plates print face-down, top rails cap-down. Everything is already oriented.",

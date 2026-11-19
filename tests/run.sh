@@ -72,6 +72,8 @@ run gang_slide      "tier=1 slide_mm=355.6" -D 'opening_h=900' -D 'shelves=[400]
 run keep_no_gang    "tier=1 slide_mm=508" -D 'opening_h=900' -D 'shelves=[400]' -D 'keepouts=[[0,400,420,400,200,100]]' -D 'door_mode="keep"'
 run gang_setback    "tier=1 rails_mm=.13. front=46" -D 'opening_h=900' -D 'shelves=[400]' -D 'shelf_setback=40'
 run printed_tiers   "Tier 1: Floor rail"  -D 'opening_h=900' -D 'shelves=[400]' -D 'rail_type="printed"'
+# wide pieces stay short enough to sit above the P1/X1 calibration corner
+run corner_split    "Tier 2: Front plate 3/3" -D 'opening_h=900' -D 'shelves=[400]'
 # one-sided tiers
 run reach_auto      "reach=right"         -D 'door_mode="keep"' -D 'door_opens="only_90"'
 run reach_auto_r    "reach=left"          -D 'door_mode="keep"' -D 'door_opens="only_90"' -D 'hinge_side="right"'

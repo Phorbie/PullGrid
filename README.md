@@ -17,6 +17,7 @@ Turn a deep cabinet into a pull-out. Enter your cabinet's measurements, and Pull
 | **Carriage** | Printed base, plates and top rails, clamped into one box by threaded tie rods. Split to fit your print bed |
 | **Panels** | Standard openGrid boards in grooves, printed from openGrid's own files |
 | **Fixed shelves** | One pull-out (tier) per gap. With a mounted door they all come out together; shared parts print from one file |
+| **Bambu project** | A ready-to-print Bambu Studio / OrcaSlicer 3MF: plates laid out, test piece on plate 1, walls and infill set per part |
 | **Blocked side** | A kept door that only opens to 90°? Each tier gets one panel against that side, every accessory facing you |
 
 All hardware is stocked by ordinary big-box stores in the US, Canada, UK, Ireland, Australia and New Zealand. The generator switches sizes and names for your region.
@@ -40,6 +41,7 @@ tests/run.sh                         # smoke tests: 50+ cabinets and modes
 tests/interference.sh                # no two parts overlap; tie rods thread every hole;
                                      # nothing hits a keep-out or shelf
 tests/print_parts.sh                 # every part exports and fits the bed
+tests/threemf.sh p1s                 # the Bambu Studio project lays out and checks out
 
 (cd site && npm ci) && bash site/build.sh && python3 -m http.server -d _site   # the website
 ```

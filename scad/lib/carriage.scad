@@ -26,6 +26,7 @@ NUT_STACK = 7.2;                                  // washer + nut, either system
 BEAD_W = 18; BEAD_H = 16;                         // rod channel along each cheek
 DOOR_GAP = 2;                                     // door back to face frame when closed
 BR_W = 40; BR_H = 40; BR_FLANGE = 5;              // door bracket
+CORNER = [18, 28];                                // Bambu P1/X1 calibration corner (bed_exclude_area)
 
 // ---------------------------------------------------------------- layout
 
@@ -62,6 +63,10 @@ function carriage_geometry(env, o) =
         N = g(o, "pullouts") > 0 ? g(o, "pullouts") : auto_pullouts(W, edge, GAP, BED_MAX),
         wp = (W - (N - 1) * GAP) / N,
         Wc = wp - 2 * edge,
+        // Bambu P1/X1 beds keep the front-left 18 x 28 mm clear for calibration.
+        // A piece too wide to sit beside that corner must be short enough to sit
+        // above it (site/threemf.js lays plates out the same way).
+        SPLIT_MAX = Wc <= bed - (CORNER[0] + 9) ? BED_MAX : bed - (CORNER[1] + 9),
         cx0 = edge, cx1 = edge + Wc,
         zs0 = max(env[2], FOOT_T + 0.5),
         zs1 = zs0 + slide_h,
@@ -114,8 +119,8 @@ function carriage_geometry(env, o) =
      ["rod_x", [cx0 + BEAD_W / 2 + 1.5, cx1 - BEAD_W / 2 - 1.5]], ["rod_z", zs0 + 9],
      ["top_rod_z", z_top - CAP_H / 2], ["rod_len", round(Lc + 2 * NUT_STACK + 2)], ["n_rods", 2 + panels],
      ["br_len", br_len], ["br_x", br_x], ["br_z", br_z],
-     ["n_rail", nseg(rail_len, BED_MAX)], ["n_base", nseg(L_in, BED_MAX)],
-     ["n_plate", nseg(z_top - zs0, BED_MAX)], ["n_top", nseg(L_in - 2 * BOSS_D, BED_MAX)],
+     ["n_rail", nseg(rail_len, BED_MAX)], ["n_base", nseg(L_in, SPLIT_MAX)],
+     ["n_plate", nseg(z_top - zs0, SPLIT_MAX)], ["n_top", nseg(L_in - 2 * BOSS_D, BED_MAX)],
      ["xo", [for (p = [0 : N - 1]) env[0] + p * (wp + GAP)]]];
 
 // Shape signatures: two specs with the same signature print the same file,

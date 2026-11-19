@@ -1,6 +1,7 @@
 {
   "name": "pullgrid-site",
   "private": true,
+  "type": "module",
   "description": "PullGrid generator site — static, no bundler. build.sh copies vendor files into _site.",
   "license": "CC-BY-SA-4.0",
   "scripts": {

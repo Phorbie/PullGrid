@@ -9,7 +9,7 @@ NM=site/node_modules
 rm -rf "$OUT"
 mkdir -p "$OUT/scad/lib" "$OUT/vendor/openscad" "$OUT/vendor/three"
 
-cp site/index.html site/app.js site/worker.js site/style.css "$OUT/"
+cp site/index.html site/app.js site/worker.js site/zip.js site/threemf.js site/style.css "$OUT/"
 cp scad/pullgrid.scad "$OUT/scad/"
 cp scad/lib/*.scad "$OUT/scad/lib/"
 cp LICENSE "$OUT/"

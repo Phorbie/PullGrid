@@ -24,6 +24,13 @@ jobs:
       - run: tests/print_parts.sh
       - name: print parts, stacked tiers
         run: tests/print_parts.sh -D 'opening_h=900' -D 'shelves=[400]' -D 'rail_type="printed"'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Bambu Studio project, P1S (calibration corner)
+        run: tests/threemf.sh p1s
+      - name: Bambu Studio project, A1, 4 tiers (split into two files)
+        run: tests/threemf.sh a1 -D 'opening_h=1500' -D 'opening_w=380' -D 'shelves=[400,800,1150]' -D 'rail_type="printed"'
 
   deploy:
     needs: test

@@ -1,6 +1,6 @@
 # Mounting your door on the pull-out
 
-In door-mount mode (the default), your cabinet door comes off its hinges and screws to four printed brackets on the pull-out's front plate. The door becomes the pull-out's front, like a drawer. This is what commercial base-cabinet pull-outs do.
+In door-mount mode (the default), your cabinet door comes off its hinges and screws to printed brackets on the pull-out's front plate. The door becomes the pull-out's front, like a drawer. This is what commercial base-cabinet pull-outs do.
 
 ## Why mount it
 
@@ -20,6 +20,20 @@ Mounting the door fixes that completely, and it also gives you width back: with 
 - Each bracket screws **to the door** with two wood screws through slotted holes (±3 mm side to side), then **to the front plate** with two screws from inside the pull-out, through slots in the plate (±4 mm up and down).
 - The door closes against the face frame like it always did, and the slides take the weight. A typical cabinet door is far under the 100 lb (45 kg) slide rating.
 - In door-mount mode, the front plate is an open frame instead of a solid sheet, since the door is the face. That saves a lot of plastic.
+
+## Cabinets with fixed shelves
+
+With [fixed shelves](measuring.md#fixed-shelves), each gap gets its own pull-out (tier), and the door screws to **all of them**. They become one tall unit that pulls out together, with the shelves staying put inside.
+
+![Four tiers on fixed shelves, all mounted to one door and pulled out together](img/tiers.png)
+
+That works because the generator gives every tier:
+
+- the **same slide length** (the shortest any tier can take), so they all travel the same distance;
+- the **same front plane** (the deepest shelf setback wins), so the door touches every bracket;
+- **one row of brackets** instead of two, since the load is shared.
+
+If one tier ends up sitting back from the door after install, put a washer or two behind its brackets.
 
 ## Fitting the door
 
@@ -42,5 +56,18 @@ Choose **Keep it hinged** in the generator if:
 - **Your door is inset** (it sits inside the face frame opening rather than in front of it). Door mount assumes an overlay door and doesn't support inset doors yet.
 - One door covers **more than the pull-out** (for example, a sink base where the pull-out only fills half).
 - You want to be able to open the door without pulling the shelf out.
+- You have fixed shelves and want to pull out **one tier at a time**.
 
 In keep-hinged mode the generator dodges your hinges, and the front plate is solid with finger slots. To reduce the blocked-side problem, swap to **170° hinges**: they're widely sold for both face-frame and frameless cabinets, use the standard 35 mm cup, and let the door swing flat out of the way. Match your door's overlay when you buy them.
+
+## When the door only opens to 90°
+
+Sometimes the door can't swing further: a wall, an appliance or the next doorway's frame stops it. Then the open door stands right beside the pulled-out tier and you can't reach that side at all.
+
+Tell the generator: **How far does the door open? → Only to 90°**. Each tier then gets a single openGrid panel tucked against the hinge side, so every accessory faces the side you can reach.
+
+![Top view: the door stops at 90 degrees against a neighbouring door frame; the tier's only panel sits against the door side, accessories face the open side](img/one-sided.svg)
+
+You lose the hidden face of the panel, so a one-sided tier holds a bit less. Since nothing hangs on the back, openGrid **Lite** boards are enough.
+
+The same layout is available manually under **Your pull-out → Reach it from**, for a pull-out next to a wall or fridge whatever the door does.

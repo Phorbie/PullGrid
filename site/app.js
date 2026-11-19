@@ -13,7 +13,8 @@ const DEFAULTS = {
   region: null, rail_type: "angle", clear_front: null,
   offset_left: null, offset_right: null, offset_bottom: null, offset_top: null,
   rear_w: null, rear_h: null, door_intrusion: 0,
-  hinges: [], keepouts: [],
+  hinges: [], keepouts: [], shelves: [], shelf_thickness: 19, shelf_setback: 0,
+  door_opens: "past_90", reach_from: "auto",
   panel_count: 1, panel_thickness: "6.8", pullouts: null, bed_size: "256",
   slide_t: 13, slide_h: 45,
   clear_side: 3, clear_top: 5, clear_rear: 10,
@@ -171,6 +172,7 @@ form.addEventListener("click", (e) => {
 // hinge + keep-out rows
 const HF = [["z", "Center height"], ["intrusion", "Sticks in"]];
 const KF = [["x", "X"], ["y", "Y"], ["z", "Z"], ["w", "Width"], ["d", "Depth"], ["h", "Height"]];
+const SF = [["z", "Shelf top, from the floor"]];
 
 function rowInput(list, i, f, label) {
   return `<div><label>${label}</label><input data-row="${i}" data-list="${list}" data-f="${f}" value="${formatLen(state[list][i][f])}" inputmode="decimal"></div>`;
@@ -178,6 +180,8 @@ function rowInput(list, i, f, label) {
 function buildRows() {
   $("#hinges").innerHTML = state.hinges.map((h, i) =>
     `<div class="row h">${HF.map(([f, l]) => rowInput("hinges", i, f, l)).join("")}<button type="button" class="x" data-del="hinges" data-i="${i}" aria-label="Remove hinge">×</button></div>`).join("");
+  $("#shelves").innerHTML = state.shelves.map((h, i) =>
+    `<div class="row s">${SF.map(([f, l]) => rowInput("shelves", i, f, l)).join("")}<button type="button" class="x" data-del="shelves" data-i="${i}" aria-label="Remove shelf">×</button></div>`).join("");
   $("#keepouts").innerHTML = state.keepouts.map((k, i) =>
     `<div class="kgroup"><div class="row k">${KF.slice(0, 3).map(([f, l]) => rowInput("keepouts", i, f, "Position " + l)).join("")}<button type="button" class="x" data-del="keepouts" data-i="${i}" aria-label="Remove keep-out">×</button></div>
      <div class="row k">${KF.slice(3).map(([f, l]) => rowInput("keepouts", i, f, l)).join("")}<span></span></div></div>`).join("");
@@ -199,6 +203,12 @@ form.addEventListener("click", (e) => {
 });
 $("#add-hinge").onclick = () => {
   state.hinges.push({ z: state.opening_h / 2, intrusion: 12 });
+  buildRows(); changed();
+};
+$("#add-shelf").onclick = () => {
+  // next one up: halfway between the last shelf and the top, or mid-height
+  const top = Math.max(0, ...state.shelves.map((s) => s.z));
+  state.shelves.push({ z: Math.round(top ? (top + state.opening_h) / 2 : state.opening_h / 2) });
   buildRows(); changed();
 };
 $("#add-keepout").onclick = () => {
@@ -260,6 +270,9 @@ function defines(s) {
     rear_w: L(s.rear_w), rear_h: L(s.rear_h), door_intrusion: L(s.door_intrusion),
     hinges: `[${s.hinges.map((h) => `[${r2(h.z)},${r2(h.intrusion)},50,45]`).join(",")}]`,
     keepouts: `[${s.keepouts.map((k) => `[${[k.x, k.y, k.z, k.w, k.d, k.h].map(r2).join(",")}]`).join(",")}]`,
+    shelves: `[${s.shelves.map((h) => r2(h.z)).join(",")}]`,
+    shelf_thickness: L(s.shelf_thickness), shelf_setback: L(s.shelf_setback),
+    door_opens: `"${s.door_opens}"`, reach_from: `"${s.reach_from}"`,
     panel_count: s.panel_count, panel_thickness: s.panel_thickness,
     pullouts: s.pullouts == null ? -1 : s.pullouts, bed_size: s.bed_size,
     door_mode: `"${s.door_mode}"`, door_thickness: L(s.door_thickness), door_overlay: L(s.door_overlay),
@@ -309,34 +322,47 @@ function apply(d, out) {
 }
 
 function parseReport(log) {
-  const r = { keepouts: [], errors: [], warnings: [], scadErrors: [], parts: [], hw: [], cuts: [] };
+  const r = { keepouts: [], errors: [], warnings: [], scadErrors: [], parts: [], hw: [], cuts: [], tiers: [] };
   for (const line of log) {
     if (/^ERROR:/.test(line)) r.scadErrors.push(line);
     const m = line.match(/PULLGRID (.*?)"?$/);
     if (!m) continue;
-    const t = m[1];
-    let x;
-    if ((x = t.match(/^envelope_mm=\[([^\]]+)\]/))) r.env = x[1].split(",").map(Number);
-    else if ((x = t.match(/^slide_mm=(\d+)/))) r.slide = +x[1];
-    else if ((x = t.match(/^panel_cells=\[(\d+), (\d+)\] x(\d+)/))) r.cells = [+x[1], +x[2], +x[3]];
-    else if ((x = t.match(/^pullouts=(\d+)/))) r.pullouts = +x[1];
-    else if ((x = t.match(/^carriage_mm=\[([^\]]+)\]/))) r.carriage = x[1].split(",").map(Number);
+    let t = m[1], x, T = r;
+    // tier header: "tier=2 floor=400 envelope_mm=[...]" or "tier=3 floor=800 skipped height=30"
+    if ((x = t.match(/^tier=(\d+) floor=([\d.]+) (?:envelope_mm=\[([^\]]+)\]|skipped height=(\d+))/))) {
+      const tr = { n: +x[1], floor: +x[2] };
+      if (x[3]) tr.env = x[3].split(",").map(Number); else tr.skipped = +x[4];
+      r.tiers[tr.n - 1] = tr;
+      continue;
+    }
+    // every other per-tier line: "tier=<n> key=..."
+    if ((x = t.match(/^tier=(\d+) (.*)$/))) { T = r.tiers[+x[1] - 1] || (r.tiers[+x[1] - 1] = { n: +x[1] }); t = x[2]; }
+    if ((x = t.match(/^slide_mm=([\d.]+)/))) T.slide = +x[1];
+    else if ((x = t.match(/^panel_cells=\[(\d+), (\d+)\] x(\d+)/))) T.cells = [+x[1], +x[2], +x[3]];
+    else if ((x = t.match(/^pullouts=(\d+)/))) T.pullouts = +x[1];
+    else if ((x = t.match(/^carriage_mm=\[([^\]]+)\]/))) T.carriage = x[1].split(",").map(Number);
     else if ((x = t.match(/^rails_mm=\[([^\]]*)\] front=([\d.]+) spacing=([\d.]+)/)))
-      r.rails = { xs: x[1].split(",").map(Number), front: +x[2], spacing: +x[3] };
+      T.rails = { xs: x[1].split(",").map(Number), front: +x[2], spacing: +x[3] };
     else if ((x = t.match(/^boards_y=\[([^\]]*)\] boards_z=\[([^\]]*)\] type=(\w+)/)))
-      r.boards = { y: x[1].split(",").map(Number), z: x[2].split(",").map(Number), type: x[3] };
+      T.boards = { y: x[1].split(",").map(Number), z: x[2].split(",").map(Number), type: x[3] };
+    else if ((x = t.match(/^bracket_mm=([\d.]+)/))) T.bracket = +x[1];
+    else if ((x = t.match(/^tiers=(\d+)/))) r.nTiers = +x[1];
     else if ((x = t.match(/^part=(\d+) id=(\S+) qty=(\d+) size=\[([^\]]+)\] label=(.*)$/)))
       r.parts.push({ index: +x[1], id: x[2], qty: +x[3], size: x[4].split(",").map(Number), label: x[5] });
     else if ((x = t.match(/^hw=(\d+) item=(.*)$/))) r.hw.push({ qty: +x[1], item: x[2] });
     else if ((x = t.match(/^cut=(\d+) len=([\d.]+) item=(.*)$/))) r.cuts.push({ qty: +x[1], len: +x[2], item: x[3] });
-    else if ((x = t.match(/^door=(\w+) region=(\w+) rails=(\w+)/))) Object.assign(r, { door: x[1], region: x[2], rails: x[3] });
-    else if ((x = t.match(/^bracket_mm=([\d.]+)/))) r.bracket = +x[1];
+    else if ((x = t.match(/^door=(\w+) region=(\w+) rails=(\w+)(?: reach=(\w+))?/)))
+      Object.assign(r, { door: x[1], region: x[2], railType: x[3], reach: x[4] || "both" });
     else if ((x = t.match(/^keepout=(\d+) dodged_by=(\w+) label=(.*)$/))) r.keepouts.push({ by: x[2], label: x[3] });
     else if ((x = t.match(/^hinges=(\d+)/))) r.hinges = +x[1];
     else if (t.startsWith("ERROR")) r.errors.push(t.slice(6));
     else if (t.startsWith("WARNING")) r.warnings.push(t.slice(8));
   }
-  r.fits = !!r.env && !r.errors.includes("no_fit") && !r.scadErrors.length;
+  r.tiers = r.tiers.filter(Boolean);
+  r.ok = r.tiers.filter((t) => t.env);
+  // the first usable tier stands in for "the pull-out" (slider travel, file names)
+  Object.assign(r, { env: r.ok[0]?.env, slide: r.ok[0]?.slide, carriage: r.ok[0]?.carriage, pullouts: r.ok[0]?.pullouts });
+  r.fits = r.ok.length > 0 && !r.errors.includes("no_fit") && !r.scadErrors.length;
   return r;
 }
 
@@ -367,15 +393,31 @@ function showReport() {
   else if (W.some((x) => x.startsWith("part_exceeds_bed"))) setStatus("warn", "Fits, but some parts are bigger than your print bed");
   else setStatus("good", "Fits");
   const row = (k, v, a = "") => `<dt>${k}</dt><dd>${v}${a ? `<span class="alt">${a}</span>` : ""}</dd>`;
-  const c = report.carriage, n = report.pullouts;
-  dl.innerHTML =
-    row("Usable space", `${fmt(w)} W × ${fmt(d)} D × ${fmt(h)} H`) +
-    (c ? row(n > 1 ? `${n} pull-outs, each` : "Pull-out", `${fmt(c[0])} W × ${fmt(c[1])} D × ${fmt(c[2])} H`) : "") +
-    (report.slide ? (report.region === "metric" ? row("Slides", `${report.slide} mm full-extension`)
-      : row("Slides", `${Math.round(report.slide / MM)}″ full-extension`, `${report.slide} mm`)) : "") +
-    (report.cells ? row("openGrid", `${report.cells[2]} panel${report.cells[2] > 1 ? "s" : ""}${n > 1 ? " per pull-out" : ""}, ${report.cells[0]} × ${report.cells[1]} cells`, `${fmt(report.cells[0] * 28)} × ${fmt(report.cells[1] * 28)}`) : "") +
-    (report.door === "mount" ? row("Door", "mounted on the pull-out", report.bracket ? `brackets ${fmt(report.bracket)} deep` : "")
-      : row("Hinges", state.hinges.length ? `${state.hinges.length} custom` : state.hinge_side === "none" ? "none" : `${report.hinges} auto`));
+  const size = (c) => `${fmt(c[0])} W × ${fmt(c[1])} D × ${fmt(c[2])} H`;
+  const slides = (t) => (!t.slide ? "" : report.region === "metric" ? `${t.slide} mm slides` : `${Math.round(t.slide / MM)}″ slides`);
+  const tierName = (t) => `Tier ${t.n}${t.floor ? ` <span class="hint">on the shelf at ${fmt(t.floor)}</span>` : report.tiers.length > 1 ? ` <span class="hint">floor</span>` : ""}`;
+  const c = report.carriage, n = report.pullouts, T = report.tiers;
+  let html = "";
+  if (T.length === 1) {
+    html = row("Usable space", `${fmt(w)} W × ${fmt(d)} D × ${fmt(h)} H`) +
+      (c ? row(n > 1 ? `${n} pull-outs, each` : "Pull-out", size(c)) : "") +
+      (report.slide ? (report.region === "metric" ? row("Slides", `${report.slide} mm full-extension`)
+        : row("Slides", `${Math.round(report.slide / MM)}″ full-extension`, `${report.slide} mm`)) : "") +
+      (report.ok[0].cells ? row("openGrid", `${report.ok[0].cells[2]} panel${report.ok[0].cells[2] > 1 ? "s" : ""}${n > 1 ? " per pull-out" : ""}, ${report.ok[0].cells[0]} × ${report.ok[0].cells[1]} cells`, `${fmt(report.ok[0].cells[0] * 28)} × ${fmt(report.ok[0].cells[1] * 28)}`) : "");
+  } else {
+    // one row per tier, bottom up
+    html = T.map((t) => t.env
+      ? row(tierName(t), `${t.pullouts > 1 ? `${t.pullouts} × ` : ""}${size(t.carriage)}`,
+            [slides(t), t.cells ? `${t.cells[0]} × ${t.cells[1]} cells` : ""].filter(Boolean).join(" · "))
+      : row(tierName(t), `<span class="hint">left empty: only ${fmt(t.skipped)} tall</span>`)).join("");
+  }
+  if (report.reach !== "both")
+    html += row("Reach", `from the ${report.reach} only`, `one panel against the ${report.reach === "left" ? "right" : "left"} side, accessories face you`);
+  html += report.door === "mount"
+    ? row("Door", report.ok.length > 1 ? `mounted on all ${report.ok.length} tiers` : "mounted on the pull-out",
+          report.ok[0]?.bracket ? `brackets ${fmt(report.ok[0].bracket)} deep` : "")
+    : row("Hinges", state.hinges.length ? `${state.hinges.length} custom` : state.hinge_side === "none" ? "none" : `${report.hinges} auto`);
+  dl.innerHTML = html;
   ul.innerHTML = report.keepouts.map((k) => `<li><strong>${esc(cap(k.label))}</strong>: ${DODGE[k.by] || k.by}</li>`).join("");
   showBuild();
 }
@@ -400,18 +442,30 @@ function showBuild() {
     const btns = ps.map((p, i) => `<button type="button" data-part="${p.index}" title="${esc(p.label)}">${ps.length > 1 ? i + 1 : ".stl"}</button>`).join(" ");
     return `<tr><td class="n">${q}×</td><td>${what}</td><td class="sz">${fmt(big.size[0])} × ${fmt(big.size[1])}</td><td class="btns">${btns}</td></tr>`;
   }).join("");
-  // boards
-  const b = r.boards;
-  if (b) {
-    const per = b.y.length * b.z.length, panels = (r.cells?.[2] || 1) * n;
-    const counts = {};
-    for (const y of b.y) for (const z of b.z) counts[`${y} × ${z}`] = (counts[`${y} × ${z}`] || 0) + panels;
-    const cell = 5;
-    const grid = `<div class="bgrid" style="grid-template-columns:${b.y.map((y) => y * cell + "px").join(" ")};grid-template-rows:${[...b.z].reverse().map((z) => z * cell + "px").join(" ")}">` +
-      [...b.z].reverse().map((z) => b.y.map((y) => `<span>${y}×${z}</span>`).join("")).join("") + "</div>";
+  // boards: every tier's panels, grouped by layout
+  const lay = new Map();
+  for (const t of r.ok) {
+    if (!t.boards) continue;
+    const k = `${t.boards.y}|${t.boards.z}`;
+    if (!lay.has(k)) lay.set(k, { b: t.boards, tiers: [], panels: 0 });
+    const L = lay.get(k);
+    L.tiers.push(t.n); L.panels += (t.cells?.[2] || 1) * (t.pullouts || 1);
+  }
+  if (lay.size) {
+    const counts = {}, type = r.ok[0].boards.type, cell = 5;
+    let total = 0, html = "";
+    for (const { b, tiers, panels } of lay.values()) {
+      for (const y of b.y) for (const z of b.z) counts[`${y} × ${z}`] = (counts[`${y} × ${z}`] || 0) + panels;
+      total += b.y.length * b.z.length * panels;
+      const grid = `<div class="bgrid" style="grid-template-columns:${b.y.map((y) => y * cell + "px").join(" ")};grid-template-rows:${[...b.z].reverse().map((z) => z * cell + "px").join(" ")}">` +
+        [...b.z].reverse().map((z) => b.y.map((y) => `<span>${y}×${z}</span>`).join("")).join("") + "</div>";
+      html += (lay.size > 1 ? `<p class="hint">${tiers.length > 1 ? "Tiers" : "Tier"} ${tiers.join(", ")}: ${panels} panel${panels > 1 ? "s" : ""}</p>` : "") + grid;
+    }
+    const panels = [...lay.values()].reduce((a, l) => a + l.panels, 0);
+    const lite = r.reach !== "both" && type === "full" ? " Accessories only go on one side, so Lite boards would do." : "";
     $("#boards").innerHTML =
-      `<p>${per * panels} ${b.type === "full" ? "Full" : "Lite"} boards: ${per} per panel × ${panels} panel${panels > 1 ? "s" : ""}. Sizes in cells, wide × tall (front-to-back × up):</p>` +
-      grid + `<ul class="hw">${Object.entries(counts).map(([k, v]) => `<li><b>${v}×</b> ${k} cells</li>`).join("")}<li>openGrid connector pegs for the board seams</li></ul>`;
+      `<p>${total} ${type === "full" ? "Full" : "Lite"} boards for ${panels} panel${panels > 1 ? "s" : ""}. Sizes in cells, wide × tall (front-to-back × up).${lite}</p>` +
+      html + `<ul class="hw">${Object.entries(counts).map(([k, v]) => `<li><b>${v}×</b> ${k} cells</li>`).join("")}<li>openGrid connector pegs for the board seams</li></ul>`;
   }
   // hardware + cuts
   $("#hw").innerHTML = r.hw.map((h) => `<li><b>${h.qty}×</b> ${esc(inch(h.item))}</li>`).join("");
@@ -419,21 +473,31 @@ function showBuild() {
   $("#cut").innerHTML = r.cuts.map((c) => `<li><b>${c.qty}×</b> ${esc(spell(c.item))} at ${cutLen(c.len)}</li>`).join("") ||
     "<li>Nothing to cut.</li>";
   // install
-  const rl = r.rails, mount = r.door === "mount", angle = r.rails === "angle";
-  const place = rl ? `${fmt(rl.spacing)} apart (inside faces)${rl.xs.length === 1 ? `, the left one ${fmt(rl.xs[0])} from the cabinet's left wall` : `, left rails at ${rl.xs.map((x) => fmt(x)).join(", ")} from the left wall`}, front ends ${fmt(rl.front)} behind the opening` : "";
+  const mount = r.door === "mount", angle = r.railType === "angle", tiers = r.ok.length > 1, one = r.reach !== "both";
+  const where = (t) => {
+    const rl = t.rails;
+    if (!rl) return "";
+    return `${fmt(rl.spacing)} apart (inside faces)${rl.xs.length === 1 ? `, the left one ${fmt(rl.xs[0])} from the cabinet's left wall` : `, left rails at ${rl.xs.map((x) => fmt(x)).join(", ")} from the left wall`}, front ends ${fmt(rl.front)} behind the opening`;
+  };
+  const place = tiers
+    ? `<ul>${r.ok.map((t) => `<li>Tier ${t.n} (${t.floor ? `shelf at ${fmt(t.floor)}` : "floor"}): ${where(t)}</li>`).join("")}</ul>`
+    : `${where(r.ok[0])}.`;
   $("#steps").innerHTML = [
+    "Check the cabinet is fixed to the wall or its neighbours. A loaded pull-out at full extension puts its weight out front.",
     "Glue the plate pieces together with the bowtie keys on the inside face. Let them cure.",
     `Cut the tie rods${angle ? " and the aluminum angle" : ""} (see Cut). File the ends smooth.`,
     "Unclip each slide. Screw the inner members to the base cheeks, front ends flush with the front of the base.",
     "Stand the front and rear plates against the base. Push the two bottom rods through, add washers and nuts.",
     "Slide the openGrid boards down into the grooves. Set the top rails on, push their rods through, then snug every nut. Don't crush the plastic.",
     mount ? "Screw the door brackets to the front plate from the inside, in the middle of their slots." : "",
-    angle ? `Screw the outer slide members to the upright leg of each angle, front ends flush. Set the angles ${place}.`
-          : `Screw the outer slide members to the floor rails. Set the rails ${place}.`,
-    `Clip the carriage on to check it runs straight. Mark the rails, unclip the carriage, ${angle ? "drill the inward leg and " : ""}screw the rails to the floor.`,
-    mount ? "Take the door off its hinges. Stick double-sided tape on the bracket faces, clip the carriage in, close it, line the door up and press it on." : "",
+    angle ? `Screw the outer slide members to the upright leg of each angle, front ends flush. Set the angles ${place}`
+          : `Screw the outer slide members to the floor rails. Set the rails ${place}`,
+    `Clip the carriage on to check it runs straight. Mark the rails, unclip the carriage, ${angle ? "drill the inward leg and " : ""}screw the rails to the floor${tiers ? " or shelf" : ""}.`,
+    mount && tiers ? "Every tier's front ends must be the same distance behind the opening. Push all the tiers in and check their front plates line up with a straightedge before you screw the last rails down." : "",
+    mount ? `Take the door off its hinges. Stick double-sided tape on the bracket faces, clip ${tiers ? "every tier" : "the carriage"} in, close it, line the door up and press it on.` : "",
     mount ? "Pull out gently, unscrew the brackets from the plate (they stay taped to the door), screw them to the door, then screw them back to the plate. The slots let you fine-tune height and side-to-side." : "",
-    "Snap openGrid accessories onto both sides.",
+    mount && tiers ? "If one tier sits back from the door, put washers between its brackets and the plate until it touches." : "",
+    one ? `Snap openGrid accessories onto the ${r.reach} side of each panel.` : "Snap openGrid accessories onto both sides.",
   ].filter(Boolean).map((s) => `<li>${spell(s)}</li>`).join("");
 }
 
@@ -526,7 +590,7 @@ function readme() {
     txt($("#cut")),
     "",
     "INSTALL  (with pictures: https://phorbie.github.io/PullGrid/docs/assembly.html)",
-    $$("#steps li").map((li, i) => `${i + 1}. ${li.textContent}`).join("\n"),
+    $$("#steps > li").map((li, i) => `${i + 1}. ${li.textContent}`).join("\n"),
     "",
   ].join("\n");
 }

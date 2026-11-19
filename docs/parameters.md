@@ -2,7 +2,7 @@
 
 Every input the generator and `scad/pullgrid.scad` accept. All dimensions are in **mm** inside the model; the website converts inches for you. `-1` means auto.
 
-PullGrid models a cabinet as **a shape with obstacles in it**: an opening in the front plane, an interior that can taper toward the back, and a list of keep-out boxes. Hinges are keep-outs generated for you (and dropped entirely when the door is mounted).
+PullGrid models a cabinet as **a shape with obstacles in it**: an opening in the front plane, an interior that can taper toward the back, fixed shelves that split it into tiers, and a list of keep-out boxes. Hinges are keep-outs generated for you (and dropped entirely when the door is mounted).
 
 ## Coordinates
 
@@ -16,6 +16,7 @@ Relative to the cabinet **interior**: `x` across from the left wall, `y` depth f
 | `interior_depth` | Front plane to back wall, at the floor |
 | `frame_type` | `face_frame` or `frameless`. Drives the offset defaults |
 | `hinge_side` | `left`, `right`, `none`. Only used when the door is kept hinged |
+| `shelves` | Fixed shelves: `[top, top, ...]`, each shelf's top surface above the interior floor, in any order. Each gap gets its own pull-out (tier). Empty = none |
 
 ## Door
 
@@ -25,6 +26,9 @@ Relative to the cabinet **interior**: `x` across from the left wall, `y` depth f
 | `door_thickness` | 19 | Door mount needs at least 15 |
 | `door_overlay` | 12.7 | How far the door overlaps the opening per side. Preview only |
 | `face_frame_thickness` | -1 | Face frame depth, front to back. Auto: 19 face frame, 0 frameless. Sets the bracket depth |
+| `door_opens` | `past_90` | Keep mode: `only_90` if something stops the door at 90°. Then each tier is one-sided (see `reach_from`) |
+
+With a mounted door and more than one tier, every tier is fixed to the door: they share the shortest slide length and the deepest front plane, and get one row of brackets each instead of two.
 
 ## Advanced: offsets and odd shapes
 
@@ -35,7 +39,9 @@ Relative to the cabinet **interior**: `x` across from the left wall, `y` depth f
 | `offset_top` | 10 / 0 | Top rail drop |
 | `rear_w`, `rear_h` | same as front | Non-square cabinets; rear assumed centered |
 | `hinges` | 2–4 Euro hinges by door height, 80 mm from the ends, 12 mm (face frame) / 20 mm intrusion | `[[center_z, intrusion, height, depth], ...]`. Keep mode only |
-| `door_intrusion` | 0 | Keep mode: a door that can't open past 90° eats the hinge side |
+| `door_intrusion` | 0 | Keep mode: how far a door at 90° sticks into the opening (inset doors). Overlay doors: 0 |
+| `shelf_thickness` | 19 | Fixed shelves |
+| `shelf_setback` | 0 | Fixed shelves: front edge behind the front plane. Tiers on shelves start this far back |
 
 **The auto values are educated guesses.** They need checking against real cabinets.
 
@@ -51,6 +57,10 @@ A pull-out sweeps its whole profile through every depth as it slides out, so any
 
 For each keep-out the solver tries five dodges (shrink from the left, right, bottom or top, or shorten from the back) and keeps the one that loses the least volume. It's greedy and order-dependent: good enough for hinges plus a pipe.
 
+The floor rails stand below the frame, so a keep-out blocks anything from the tier's floor up. **Raising the floor** is only allowed when the keep-out covers the tier's whole width and rail run: the rails then stand on top of it. Anything smaller gets one of the other dodges.
+
+Each tier is solved separately, in the slice between its shelf (or the floor) and the shelf above (or the opening top), so a keep-out only costs the tiers it reaches.
+
 ## Pull-out
 
 | Param | Default | Meaning |
@@ -59,6 +69,7 @@ For each keep-out the solver tries five dodges (shrink from the left, right, bot
 | `panel_thickness` | 6.8 | 6.8 = openGrid Full (double-sided), 4.0 = Lite |
 | `pullouts` | -1 (auto) | Side-by-side pull-outs. Auto = as few as fit the print bed |
 | `bed_size` | 256 | Parts are split to fit, with a 6 mm margin |
+| `reach_from` | `auto` | `both`, `left` or `right`: which side of a pulled-out tier you can reach. One side = a single panel against the other side, all accessories facing you (`panel_count` is ignored). Auto = both, unless `door_mode = keep` and `door_opens = only_90`, which picks the side away from the hinges |
 
 The frame is sized to whole 28 mm openGrid cells, so it can come out up to one cell shorter and shallower than the space allows.
 
@@ -72,7 +83,7 @@ The frame is sized to whole 28 mm openGrid cells, so it can come out up to one c
 | `slide_t` | 13.0 | Slide clearance per side. The spec is ½″ (12.7) plus up to 1/32″, so 13.0 aims mid-range |
 | `slide_h` | 45 | Slide body height |
 
-The angle must reach above the slide's screw line: leg ≥ slide bottom + 28.5 mm. The generator picks 1½″ / 40 mm, or 2″ / 50 mm when the bottom rail is tall, and warns if neither reaches.
+The angle must reach above the slide's screw line: leg ≥ slide bottom + 28.5 mm. The generator picks 1½″ / 40 mm, or 2″ / 50 mm when the bottom rail is tall, and warns if neither reaches. With several tiers it uses the bigger size everywhere, so you buy one stock size.
 
 ## Clearances
 
@@ -91,3 +102,4 @@ The angle must reach above the slide's screw line: leg ≥ slide bottom + 28.5 m
 | `print_index` | With `part = "print"`: which part, from the `PULLGRID part=` report lines. Print parts come out oriented and sitting on z = 0 |
 | `extension` | Preview only: 0 = closed, 1 = full slide travel |
 | `show_cabinet` | Ghost cabinet in the assembly preview |
+| `test_tier` | Hidden. Which tier `G` describes (for the interference tests) |

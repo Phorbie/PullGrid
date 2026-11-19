@@ -17,7 +17,13 @@ jobs:
       - run: sudo apt-get update -qq && sudo apt-get install -y -qq openscad
       - run: tests/run.sh
       - run: tests/interference.sh
+      - name: interference, stacked tiers (upper tier, printed rails)
+        run: tests/interference.sh -D 'opening_h=1200' -D 'shelves=[400,800]' -D 'test_tier=1' -D 'rail_type="printed"'
+      - name: interference, one-sided tier behind a 90-degree door
+        run: tests/interference.sh -D 'door_mode="keep"' -D 'door_opens="only_90"'
       - run: tests/print_parts.sh
+      - name: print parts, stacked tiers
+        run: tests/print_parts.sh -D 'opening_h=900' -D 'shelves=[400]' -D 'rail_type="printed"'
 
   deploy:
     needs: test

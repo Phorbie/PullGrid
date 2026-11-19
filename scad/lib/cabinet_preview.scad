@@ -18,6 +18,12 @@ module cabinet_preview(front_w, front_h, rear_w, rear_h, depth,
     }
 }
 
+// Fixed shelves: [top height, thickness, setback] each, full width and depth.
+module shelves_preview(front_w, depth, shelves) {
+    color("Peru", 0.55) for (s = shelves)
+        ghost_box([0, s[2], s[0] - s[1]], [front_w, depth - s[2], s[1]]);
+}
+
 // Hinges, plumbing, anything else in the way.
 module keepout_preview(keepouts) {
     color("Red", 0.5) for (k = keepouts) ghost_box([k[0], k[1], k[2]], [k[3], k[4], k[5]]);

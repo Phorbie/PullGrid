@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 470" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="13">
+  <title>Top view: a door stopped at 90 degrees, and a one-sided tier with its panel against the door side</title>
+  <rect width="680" height="470" fill="#fbfaf6"/>
+  <!-- neighbouring wall / door frame -->
+  <line x1="60" y1="260" x2="190" y2="260" stroke="#1f1e1b" stroke-width="2"/>
+  <line x1="360" y1="260" x2="420" y2="260" stroke="#1f1e1b" stroke-width="2"/>
+  <line x1="420" y1="260" x2="420" y2="440" stroke="#1f1e1b" stroke-width="2"/>
+  <rect x="412" y="266" width="16" height="24" rx="2" fill="#d3d1c7" stroke="#5f5e5a"/>
+  <!-- cabinet -->
+  <rect x="190" y="40" width="170" height="220" fill="none" stroke="#a9a397"/>
+  <text x="275" y="62" text-anchor="middle" fill="#6c675c">cabinet (top view)</text>
+  <!-- pulled-out tier -->
+  <rect x="205" y="246" width="140" height="190" rx="3" fill="#e1f5ee" stroke="#0f6e56"/>
+  <line x1="329" y1="252" x2="329" y2="430" stroke="#085041" stroke-width="3"/>
+  <g fill="none" stroke="#0f6e56" stroke-dasharray="4 3">
+    <rect x="216" y="272" width="104" height="34" rx="2"/>
+    <rect x="216" y="322" width="104" height="34" rx="2"/>
+    <rect x="216" y="372" width="104" height="34" rx="2"/>
+  </g>
+  <!-- door at 90 -->
+  <rect x="356" y="260" width="9" height="170" rx="1" fill="#5f5e5a"/>
+  <circle cx="360" cy="260" r="3" fill="#1f1e1b"/>
+  <g fill="#1f1e1b">
+    <line x1="428" y1="278" x2="470" y2="278" stroke="#a9a397"/>
+    <text x="476" y="282">door frame next door</text>
+    <line x1="365" y1="380" x2="470" y2="380" stroke="#a9a397"/>
+    <text x="476" y="376" font-weight="600">door stops at 90°</text>
+    <text x="476" y="393" fill="#6c675c">covers the hinge side</text>
+    <line x1="329" y1="250" x2="470" y2="180" stroke="#a9a397"/>
+    <text x="476" y="176" font-weight="600">one panel, against</text>
+    <text x="476" y="193" font-weight="600">the hinge side</text>
+    <line x1="216" y1="339" x2="150" y2="339" stroke="#a9a397"/>
+    <text x="144" y="335" text-anchor="end">accessories all</text>
+    <text x="144" y="352" text-anchor="end">face the open side</text>
+    <text x="275" y="458" text-anchor="middle" fill="#6c675c">tier at full extension</text>
+  </g>
+</svg>

@@ -4,6 +4,10 @@ Allow an afternoon. You'll build the pull-out on a table, fit the rails in the c
 
 You'll need everything on the [hardware list](hardware.md), the printed parts, your openGrid boards, and the [tools](hardware.md#tools).
 
+> **Is the cabinet fixed down?** A loaded pull-out at full extension puts its weight in front of the cabinet. Base cabinets and wall-hung cabinets are already screwed in place. A freestanding cabinet (a pantry unit, a hallway cupboard) needs an anti-tip strap or a couple of screws into a wall stud or its neighbour before you fit a pull-out. Tall units with several tiers matter most.
+
+With [fixed shelves](measuring.md#fixed-shelves), build one pull-out per tier. The steps are the same; the rails for each tier go on its shelf.
+
 ![The finished pull-out, door mounted, pulled out of the cabinet](img/assembly-mount.png)
 
 ## 1. Glue the plates
@@ -39,6 +43,10 @@ Lay the base pieces in a row. Press the lever on each slide to unclip the inner 
 3. Clip the pull-out onto the slides and run it in and out. It should glide without binding. If it binds, the rails are too close or not parallel.
 4. Mark the rail positions with tape or pencil, unclip the pull-out, and screw the rails to the floor through the inward legs. Drill the aluminum first; printed rails have holes already.
 
+**Rails on a shelf:** the listed screws need a ¾″ (19 mm) shelf. On a thinner shelf, use shorter screws so the tips don't come through underneath.
+
+**Stacked tiers with a mounted door:** every tier's rails must start the **same distance** behind the opening. Before you screw the last rails down, push all the tiers in and lay a straightedge across their front plates. They should all touch it.
+
 ## 6. Clip it in
 
 Clip the pull-out back onto the slides and push it home. If your door stays hinged, you're done: snap on your accessories.
@@ -50,7 +58,7 @@ Clip the pull-out back onto the slides and push it home. If your door stays hing
 ![Side section of the door bracket](img/door-mount.svg)
 
 1. Take the door off its hinges and remove the hinge mounting plates from the cabinet.
-2. Screw the four brackets to the front plate from inside the pull-out, through the slots, with the screws in the **middle** of the slots. A long screwdriver reaches the bottom pair.
+2. Screw the brackets to the front plate from inside the pull-out, through the slots, with the screws in the **middle** of the slots. A long screwdriver reaches the bottom pair. With stacked tiers, do this on every tier.
 3. Put a square of double-sided tape on the face of each bracket.
 4. Push the pull-out closed. Hold the door in its closed position with even gaps all round (coins or card make good spacers) and press it firmly onto the tape.
 5. Pull out gently. Unscrew the brackets from the plate; they stay taped to the door.
@@ -62,5 +70,6 @@ Clip the pull-out back onto the slides and push it home. If your door stays hing
 - **Door too high or low**: loosen the plate screws and slide the door up or down (±4 mm).
 - **Door off to one side**: loosen the door screws and slide it sideways (±3 mm).
 - **Pull-out racks or wobbles**: tighten the tie rods a little, and check the rails are parallel.
+- **One tier sits back from the door** (stacked tiers): put flat washers between that tier's brackets and the plate until the bracket touches the door.
 
-Now snap openGrid hooks, bins and shelves onto both sides of each panel.
+Now snap openGrid hooks, bins and shelves onto both sides of each panel, or onto the open side if your tiers are [one-sided](door-mount.md#when-the-door-only-opens-to-90).

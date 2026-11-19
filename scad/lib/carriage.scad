@@ -49,7 +49,8 @@ function sum(v, n) = n <= 0 ? 0 : v[n - 1] + sum(v, n - 1);
 // o: options key/value list (see pullgrid.scad)
 function carriage_geometry(env, o) =
     let(
-        panels = g(o, "panels"), board_t = g(o, "board_t"), slide_t = g(o, "slide_t"),
+        reach = g(o, "reach"), one = reach == "left" || reach == "right",
+        panels = one ? 1 : g(o, "panels"), board_t = g(o, "board_t"), slide_t = g(o, "slide_t"),
         slide_h = g(o, "slide_h"), bed = g(o, "bed"), metric = g(o, "region") == "metric",
         angle = g(o, "rail_type") == "angle", at = g(o, "angle_t"),
         mount = g(o, "door_mode") == "mount", fft = g(o, "fft"),
@@ -72,20 +73,33 @@ function carriage_geometry(env, o) =
         ny = floor((env[5] - y0 - 2 * PT - 0.6) / 28),
         L_in = ny * 28 + 0.6,
         y_r = y_f + L_in,
-        slide_len = pick_le(L_in, metric ? SLIDES_METRIC : SLIDES_INCH),
+        // stacked tiers on one door must share a slide length (slide_max), and
+        // one stock size of angle (leg_force)
+        slide_len = pick_le(min(L_in, g(o, "slide_max")), metric ? SLIDES_METRIC : SLIDES_INCH),
         rail_len = slide_len > 0 ? slide_len : L_in,
         leg_need = zs0 + slide_h / 2 + 6,          // angle must reach past the slide's screw line
-        leg = angle ? pick_ge(leg_need, metric ? ANGLE_METRIC : ANGLE_INCH) : 0,
+        leg = !angle ? 0 : g(o, "leg_force") >= leg_need ? g(o, "leg_force")
+                         : pick_ge(leg_need, metric ? ANGLE_METRIC : ANGLE_INCH),
         iw = Wc - 2 * CHEEK_T,
-        px = [for (i = [0 : panels - 1]) cx0 + CHEEK_T + (i + 1) * iw / (panels + 1)],
+        // one-sided: the single panel hugs the blocked side, just clear of the rod bead,
+        // so every accessory faces the side you can reach
+        tuck = BEAD_W + GW / 2 + RIB_T + 1,
+        px = one ? [reach == "left" ? cx1 - tuck : cx0 + tuck]
+                 : [for (i = [0 : panels - 1]) cx0 + CHEEK_T + (i + 1) * iw / (panels + 1)],
         edges_x = concat([cx0 + CHEEK_T], px, [cx1 - CHEEK_T]),
         bays = [for (i = [0 : len(edges_x) - 2]) [edges_x[i], edges_x[i + 1]]],
         key_x = [for (b = bays) if (b[1] - b[0] >= GW + 2 * RIB_T + 16) (b[0] + b[1]) / 2],
         Lc = y_r + PT - y0,
         br_len = y0 + fft + DOOR_GAP,
         br_lo = zs1 + 22, br_hi = z_top - CAP_H - 4 - 24,
-        br_z = br_hi - br_lo >= BR_H + 20 ? [br_lo, br_hi] : [(zs1 + z_top - CAP_H) / 2],
-        br_x = [(bays[0][0] + bays[0][1]) / 2, (bays[len(bays) - 1][0] + bays[len(bays) - 1][1]) / 2]
+        // one row of brackets when the door is shared with other tiers
+        br_z = br_hi - br_lo >= BR_H + 20 && g(o, "br_rows") != 1 ? [br_lo, br_hi] : [(zs1 + z_top - CAP_H) / 2],
+        // door brackets go in bays wide enough to reach their screws from inside:
+        // the middle of the outer two, or the quarter points of a lone wide bay
+        wide = [for (b = bays) if (b[1] - b[0] >= BR_W + 2 * (GW / 2 + RIB_T) + 12) b],
+        br_x = len(wide) >= 2 ? [(wide[0][0] + wide[0][1]) / 2, (wide[len(wide) - 1][0] + wide[len(wide) - 1][1]) / 2]
+             : len(wide) == 1 ? [wide[0][0] + (wide[0][1] - wide[0][0]) / 4, wide[0][0] + 3 * (wide[0][1] - wide[0][0]) / 4]
+             : [(bays[0][0] + bays[0][1]) / 2, (bays[len(bays) - 1][0] + bays[len(bays) - 1][1]) / 2]
     )
     [["RAIL_T", RAIL_T], ["FOOT_T", FOOT_T], ["CHEEK_T", CHEEK_T], ["BASE_T", BASE_T],
      ["PT", PT], ["RIB_T", RIB_T], ["RIB_D", RIB_D], ["GW", GW], ["CAP_H", CAP_H],
@@ -96,7 +110,7 @@ function carriage_geometry(env, o) =
      ["zs0", zs0], ["zs1", zs1], ["zb", zb], ["nz", nz], ["z_top", z_top],
      ["y0", y0], ["y_f", y_f], ["ny", ny], ["L_in", L_in], ["y_r", y_r], ["Lc", Lc],
      ["slide_len", slide_len], ["rail_len", rail_len],
-     ["panels", panels], ["px", px], ["bays", bays], ["key_x", key_x],
+     ["panels", panels], ["px", px], ["bays", bays], ["key_x", key_x], ["reach", one ? reach : "both"],
      ["rod_x", [cx0 + BEAD_W / 2 + 1.5, cx1 - BEAD_W / 2 - 1.5]], ["rod_z", zs0 + 9],
      ["top_rod_z", z_top - CAP_H / 2], ["rod_len", round(Lc + 2 * NUT_STACK + 2)], ["n_rods", 2 + panels],
      ["br_len", br_len], ["br_x", br_x], ["br_z", br_z],
@@ -104,8 +118,26 @@ function carriage_geometry(env, o) =
      ["n_plate", nseg(z_top - zs0, BED_MAX)], ["n_top", nseg(L_in - 2 * BOSS_D, BED_MAX)],
      ["xo", [for (p = [0 : N - 1]) env[0] + p * (wp + GAP)]]];
 
+// Shape signatures: two specs with the same signature print the same file,
+// even from tiers at different heights. Everything is relative to the part.
+Z_KEYS = ["zs0", "zs1", "zb", "z_top", "rod_z", "top_rod_z", "br_z", "leg_need",
+          "n_rail", "rail_len", "FOOT_T", "RAIL_T", "leg", "slide_len", "xo"];
+function carriage_sig(G) = concat([for (kv = G) if (search([kv[0]], Z_KEYS, 1)[0] == []) kv],
+    [["h", g(G, "z_top") - g(G, "zs0")], ["br_dz", [for (z = g(G, "br_z")) z - g(G, "zs0")]]]);
+// round away float noise (21.0 - 15 vs 9.7 - 3.7)
+function rnd(v) = is_list(v) ? [for (x = v) rnd(x)] : is_num(v) ? round(v * 1000) / 1000 : v;
+function part_sig(G, s) = rnd(part_sig_(G, s));
+function part_sig_(G, s) = let(k = s[3], x0 = g(G, "cx0"), z0 = g(G, "zs0"))
+    k == "key" ? ["key"] :
+    k == "bracket" ? ["bracket", g(G, "br_len")] :
+    k == "rail_L" || k == "rail_R" ? [k, s[4], s[5], g(G, "rail_len"), g(G, "zs1"), g(G, "FOOT_T"), g(G, "RAIL_T"), g(G, "slide_t")] :
+    k == "base" ? [k, s[4], s[5], g(G, "cx1") - x0, g(G, "y_r") - g(G, "y_f"), g(G, "slide_h"), g(G, "zb") - z0, g(G, "GW"),
+                   [for (x = g(G, "px")) x - x0], [for (x = g(G, "rod_x")) x - x0], g(G, "rod_z") - z0] :
+    k == "front" || k == "rear" ? [k, s[4], carriage_sig(G)] :
+    [k, s[4], s[5], g(G, "CAP_W"), g(G, "GW"), g(G, "L_in")];   // top rails
+
 function carriage_valid(G) =
-    g(G, "nz") >= 1 && g(G, "ny") >= 1 &&
+    g(G, "nz") >= 2 && g(G, "ny") >= 1 &&
     g(G, "Wc") > 2 * BEAD_W + g(G, "panels") * (g(G, "GW") + 2 * g(G, "RIB_T")) + 10;
 
 // seams split [lo, hi] into n equal pieces; outer slabs run to infinity

@@ -67,6 +67,13 @@
           </div>
           <small>Face frame: a wood frame narrower than the box around the opening. Frameless: the opening is the whole box.</small>
         </div>
+
+        <div class="field">
+          <span>Fixed shelves <a class="help" href="docs/measuring.html#fixed-shelves">How</a></span>
+          <div class="rows" id="shelves"></div>
+          <button type="button" class="ghost" id="add-shelf">+ Add shelf</button>
+          <small>Shelves that don't come out. Measure from the cabinet floor to the top of each one. Every gap gets its own pull-out (a tier).</small>
+        </div>
       </section>
 
       <section>
@@ -76,8 +83,16 @@
             <button type="button" data-v="mount">Mount it on the pull-out</button>
             <button type="button" data-v="keep">Keep it hinged</button>
           </div>
-          <small data-show="door_mode=mount">The door comes off its hinges and becomes the pull-out's front, so nothing blocks the sides.</small>
-          <small data-show="door_mode=keep">A door that only opens to 90° blocks part of the hinge side. 170° hinges help.</small>
+          <small data-show="door_mode=mount">The door comes off its hinges and becomes the pull-out's front, so nothing blocks the sides. With shelves, every tier rides on the door and they pull out together.</small>
+          <small data-show="door_mode=keep">Open the door first. With fixed shelves, each tier pulls out on its own.</small>
+        </div>
+        <div class="field" data-show="door_mode=keep">
+          <span>How far does the door open?</span>
+          <div class="seg" data-key="door_opens">
+            <button type="button" data-v="past_90">Past 90°</button>
+            <button type="button" data-v="only_90">Only to 90°</button>
+          </div>
+          <small data-show="door_opens=only_90">The open door covers the hinge side of a pulled-out tier, so the panel goes on that side and everything faces you.</small>
         </div>
         <label class="field" data-show="door_mode=mount">
           <span>Door thickness</span>
@@ -107,6 +122,10 @@
         <div class="grid2">
           <label class="field"><span>Face frame depth</span><input data-key="face_frame_thickness" data-kind="len" data-auto inputmode="decimal"><small>Front to back.</small></label>
           <label class="field"><span>Door overlay</span><input data-key="door_overlay" data-kind="len" inputmode="decimal"><small>Per side, for the preview.</small></label>
+        </div>
+        <div class="grid2">
+          <label class="field"><span>Shelf thickness</span><input data-key="shelf_thickness" data-kind="len" inputmode="decimal"></label>
+          <label class="field"><span>Shelf setback</span><input data-key="shelf_setback" data-kind="len" inputmode="decimal"><small>Shelf front edge behind the opening.</small></label>
         </div>
         <label class="field" data-show="door_mode=keep"><span>Door swing intrusion</span><input data-key="door_intrusion" data-kind="len" inputmode="decimal">
           <small>If the door can't open past 90°, how far it sticks into the opening.</small></label>
@@ -150,6 +169,16 @@
             </div>
             <small>mm. A1 mini / A1, P1, X1 / H2D.</small>
           </div>
+        </div>
+        <div class="field">
+          <span>Reach it from</span>
+          <div class="seg" data-key="reach_from">
+            <button type="button" data-v="auto">Auto</button>
+            <button type="button" data-v="both">Both sides</button>
+            <button type="button" data-v="left">Left only</button>
+            <button type="button" data-v="right">Right only</button>
+          </div>
+          <small>Auto means both, unless a kept door only opens to 90°. One side: a single panel against the blocked side, every accessory facing you. Lite boards are enough.</small>
         </div>
       </section>
 

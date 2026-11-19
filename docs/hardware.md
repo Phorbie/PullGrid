@@ -2,7 +2,7 @@
 
 PullGrid prints the parts that have to fit your cabinet and buys the parts that are just straight lines. Every item below is stocked by ordinary big-box hardware stores in the **US and Canada** (inch sizes) and the **UK, Ireland, Australia and New Zealand** (metric sizes). The printed parts accept either size, so buy whatever your local store has.
 
-The generator's **Buy** list gives you exact quantities and lengths for your cabinet. Set **Where you'll buy it** to your region and the names and sizes switch to match. For one pull-out, expect roughly US$50–70 or the local equivalent, mostly the slides and the angle.
+The generator's **Buy** list gives you exact quantities and lengths for your cabinet. Set **Where you'll buy it** to your region and the names and sizes switch to match. For one pull-out, expect roughly US$50–70 or the local equivalent, mostly the slides and the angle. A cabinet with fixed shelves needs a set per tier.
 
 ## Shopping list
 
@@ -17,6 +17,7 @@ The generator's **Buy** list gives you exact quantities and lengths for your cab
 | **Wood screws** (door) | #8 × ⅝″ | 4 × 16 mm | Door mount only: brackets to door |
 | **Glue** | CA (super glue) or epoxy | Same | Bowtie keys at the plate seams |
 | **Double-sided tape** | Any foam mounting tape | Same | Door mount only: positions the door before screwing |
+| **Flat washers** | #8 | M4 | Stacked tiers with a mounted door: shims if one tier sits back |
 
 ## What to look for
 

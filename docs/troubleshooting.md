@@ -10,8 +10,12 @@
 | **Aluminum angle won't reach the slides** | Your bottom rail is tall, so the slides sit higher than the tallest stock angle reaches | Switch *Floor rails* to **Printed** |
 | **That door is too thin** | Door mount needs at least 15 mm of door for the bracket screws | Keep the door hinged, or use shorter screws and accept less grip |
 | **Some parts are bigger than your bed** | Shouldn't happen with auto pull-outs | Check *Print bed*, or let *Pull-outs* go back to auto |
+| **Tier N: left empty** | The gap between two fixed shelves (or a shelf and the top) is under about 3½″ / 90 mm | Nothing to do: that gap keeps its shelf. Check the shelf heights are measured from the cabinet floor |
+| **Every tier got a shorter slide** | With a mounted door, all tiers share one slide length: the shortest any tier can take | Find the tier with the obstacle (the report says which) and see if it can move. Or keep the door hinged so each tier gets its own length |
 
-The report also lists what each obstacle cost, for example "Hinge 1: narrowed the frame from the left". That tells you which measurement to double-check.
+The report also lists what each obstacle cost, for example "Hinge 1: narrowed the frame from the left" or "Keep-out 1, tier 2: shortened the frame from the back". That tells you which measurement to double-check.
+
+**A keep-out on the floor narrowed or shortened the pull-out instead of raising it.** That's deliberate: the rails would stand on air or run through it. The pull-out only stands on a keep-out that covers the whole floor of the opening, front to back.
 
 ## Building and installing
 
@@ -24,6 +28,8 @@ The report also lists what each obstacle cost, for example "Hinge 1: narrowed th
 **The tie rod is too short to get a nut on.** The cut length includes room for a washer and nut at each end. Cut a new rod to the length in the **Cut** list, measured carefully.
 
 **The door's gaps are uneven.** Use the slots: up and down at the plate screws, side to side at the door screws. If that isn't enough, the rails aren't square to the cabinet front.
+
+**One tier sits back from the mounted door.** Its rails are further back than the others. Put a flat washer or two between each of its brackets and the front plate. Next time, set every tier's rails with a straightedge across the closed front plates.
 
 **The door hits the face frame before closing.** Your face frame is deeper than the default 3/4″ (19 mm). Measure it and set *Face frame depth* in **Advanced**, then reprint the brackets.
 

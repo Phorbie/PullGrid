@@ -1,4 +1,5 @@
-// Every pair of parts in one pull-out must not overlap. Run with -D pair=k;
+// Every pair of parts in one pull-out (tier test_tier) must not overlap, and nothing
+// in the cabinet may hit a keep-out or shelf. Run with -D pair=k;
 // a clean pair renders nothing ("Current top level object is empty").
 include <../scad/pullgrid.scad>
 pair = 0;
@@ -7,7 +8,11 @@ PAIRS = [["base","front"],["base","rear"],["base","top"],["base","boards"],["fro
          ["rails","front"],["rails","rear"],["rails","boards"],["slides_in","base"],["slides_out","rails"],
          ["slides_in","rails"],["brackets","front"],["brackets","base"],["brackets","boards"],["brackets","rails"],
          // tie rods must thread through every part's holes
-         ["rods","base"],["rods","front"],["rods","rear"],["rods","top"],["rods","brackets"]];
+         ["rods","base"],["rods","front"],["rods","rear"],["rods","top"],["rods","brackets"],
+         // whole cabinet, every tier: nothing may run through a keep-out or a shelf,
+         // and a pulled-out tier must clear a door kept open at 90 degrees
+         ["w_rails","obstacles"],["w_carriage","obstacles"],["w_boards","obstacles"],["w_carriage_out","door90"]];
+echo(str("PAIRS ", len(PAIRS)));
 module P_(n) {
     if (n == "base") base_full(G);
     if (n == "front") plate_keyed(G, "front");
@@ -20,6 +25,20 @@ module P_(n) {
     // hardware shrunk 0.05 so face contact doesn't count
     if (n == "slides_in") translate([0, 0.05, 0.05]) resize_slides("inner");
     if (n == "slides_out") translate([0, 0.05, 0.05]) resize_slides("outer");
+    if (n == "obstacles") obstacles();
+    if (n == "door90" && !MOUNT) door_part();
+    if (n[0] == "w" && n[1] == "_") W_(n);
+}
+// every tier in cabinet coordinates
+module W_(n) for (t = TV) let(Gt = t[2]) translate([0, n == "w_carriage_out" ? -g(Gt, "slide_len") : 0, t[1]])
+    for (x = g(Gt, "xo")) translate([x, 0, 0]) {
+        if (n == "w_rails") { if (g(Gt, "angle")) angle_part(Gt); else { rail_full(Gt, "L"); rail_full(Gt, "R"); } }
+        if (n == "w_carriage" || n == "w_carriage_out") carriage_part(Gt);
+        if (n == "w_boards") boards_part(Gt);
+    }
+module obstacles() {
+    for (k = all_keepouts) translate([k[0], k[1], k[2]]) cube([k[3], k[4], k[5]]);
+    shelves_preview(front_w, interior_depth, SHELF_LIST);
 }
 module resize_slides(w) intersection() { slides_part(G, w); slides_shrink(w); }
 module slides_shrink(w) { RT = g(G, "RAIL_T"); st = g(G, "slide_t"); wp = g(G, "wp");

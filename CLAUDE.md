@@ -7,6 +7,8 @@
 - The site reads `echo` lines prefixed `PULLGRID`. Changing their format is a breaking change.
 - Run `tests/run.sh`, `tests/interference.sh` and `tests/print_parts.sh` before committing geometry changes. CI runs all three. Interference counts zero-volume face contact as OK.
 - Frame layout lives in a key/value list `G` from `carriage_geometry()`; read it with `g(G, "key")`. Modules take `G`, never globals.
+- Fixed shelves split the cabinet into tiers (`TL`/`TV` in `pullgrid.scad`). Each tier has its own `G` in tier-local z (0 = what its rails stand on); the assembly translates by the tier's support height. Report lines about one tier start `tier=<n> `. Print parts are grouped across tiers by `part_sig()`, so signatures must be relative to the part and rounded.
+- Floor rails stand under the carriage: keep-outs block from the support up, and only a full-width, full-run keep-out may raise the support.
 - The site renders with `--backend=manifold` (~40x faster than CGAL). Desktop 2021.01 uses CGAL, so keep CSG simple.
 - openGrid pitch is 28 mm. Tiles are NOT modeled: the frame holds standard boards in grooves. The popular openGrid tile generator is CC BY-NC-SA, which conflicts with our CC BY-SA, so don't copy from it.
 - Non-printed hardware must be stocked in big-box stores in both inch (US, CA) and metric (UK, IE, AU, NZ) markets. Printed holes accept both sizes; no size-specific nut traps. `region` switches slide lengths, stock sizes and BOM names.

@@ -15,6 +15,8 @@ interior_depth = 560;
 frame_type = "face_frame"; // [face_frame, frameless]
 // Which side the door hinges are on
 hinge_side = "left"; // [left, right, none]
+// Fixed shelves: height of each shelf's TOP above the interior floor. Each gap gets its own pull-out (tier).
+shelves = [];
 
 /* [Advanced: opening offsets] */
 // How far the face frame overhangs the interior on each side (-1 = auto)
@@ -29,6 +31,12 @@ offset_top = -1;
 rear_w = -1;
 // Interior height at the back wall (-1 = same as front)
 rear_h = -1;
+
+/* [Advanced: fixed shelves] */
+// Shelf thickness
+shelf_thickness = 19;
+// How far each shelf's front edge sits behind the front plane
+shelf_setback = 0;
 
 /* [Advanced: hinges] */
 // Override auto hinges: list of [center height, intrusion, hinge height, hinge depth]. Empty = auto.
@@ -49,10 +57,15 @@ door_thickness = 19;
 door_overlay = 12.7;
 // Face frame depth, front to back (-1 = auto: 19 for face frame, 0 for frameless)
 face_frame_thickness = -1;
+// Kept doors: can the door swing past 90 degrees? If not, it blocks the hinge side of a pulled-out tier
+door_opens = "past_90"; // [past_90, only_90]
 
 /* [Frame] */
 // openGrid panels per pull-out, running front to back
 panel_count = 1;
+// Sides of a pulled-out tier you can reach. auto = both, unless a kept door only opens to 90 degrees.
+// One side = a single panel against the other side, every accessory facing you.
+reach_from = "auto"; // [auto, both, left, right]
 // 6.8 = openGrid Full (double-sided), 4.0 = openGrid Lite
 panel_thickness = 6.8; // [6.8, 4.0]
 // Pull-outs side by side (-1 = as few as fit your print bed)
@@ -89,6 +102,8 @@ print_index = 0;
 extension = 0; // [0:0.05:1]
 
 /* [Hidden] */
+// tests: which tier G (the first valid tier's layout) describes
+test_tier = 0;
 include <lib/envelope.scad>
 include <lib/carriage.scad>
 include <lib/cabinet_preview.scad>
@@ -136,111 +151,191 @@ FFT = face_frame_thickness >= 0 ? face_frame_thickness : (FF ? 19 : 0);
 // front gap: tie-rod nuts stick out 7.2 mm and must clear the closed door
 CF = clear_front >= 0 ? clear_front : max(0, 9 - FFT);
 AT = angle_thickness > 0 ? angle_thickness : (region == "metric" ? 3.0 : 3.2);
+M = region == "metric";
+// a kept door that stops at 90 degrees blocks the hinge side of a pulled-out tier
+REACH = reach_from != "auto" ? reach_from
+      : (!MOUNT && door_opens == "only_90" && hinge_side != "none") ? (hinge_side == "left" ? "right" : "left")
+      : "both";
 env0 = base_envelope(front_w, front_h, r_w, r_h, interior_depth,
                      o_l, o_r, o_b, o_t, clear_side, clear_top, clear_rear, CF);
-solved = apply_keepouts(env0, all_keepouts);
-env = solved[0];
-OPTS = [["panels", max(1, panel_count)], ["board_t", panel_thickness], ["slide_t", slide_t], ["slide_h", slide_h],
-        ["bed", bed_size], ["pullouts", pullouts], ["region", region], ["rail_type", rail_type],
-        ["angle_t", AT], ["door_mode", door_mode], ["fft", FFT]];
-G = env_valid(env) ? carriage_geometry(env, OPTS) : [];
-fits = env_valid(env) && carriage_valid(G);
-specs = fits ? part_specs(G) : [];
-M = region == "metric";
+
+// Shelves split the cabinet into tiers. Each tier is solved on its own, in
+// local coordinates: z = 0 is what its rails stand on (floor, shelf or a
+// platform keep-out), so identical gaps give identical parts.
+function sort_asc(v) = len(v) <= 1 ? v : let(p = v[0], r = [for (i = [1 : len(v) - 1]) v[i]])
+    concat(sort_asc([for (x = r) if (x < p) x]), [p], sort_asc([for (x = r) if (x >= p) x]));
+SH = [for (s = sort_asc(shelves)) if (s > 0 && s - shelf_thickness < front_h - o_t) s];
+K = len(SH) + 1;
+// [support, bottom, top, front] per gap
+BAYS = [for (i = seq(K)) [i == 0 ? 0 : SH[i - 1], i == 0 ? o_b : SH[i - 1],
+                          i < K - 1 ? SH[i] - shelf_thickness - clear_top : BIG, i == 0 ? CF : max(CF, shelf_setback)]];
+SOLVED = [for (b = BAYS) apply_keepouts(tier_envelope(env0, b[0], b[1], b[2], b[3]), all_keepouts)];
+
+function local_env(e) = [e[0], e[1], e[2] - e[6], e[3] - e[6], e[4], e[5], 0];
+function opts(smax, leg, rows) =
+    [["panels", max(1, panel_count)], ["board_t", panel_thickness], ["slide_t", slide_t], ["slide_h", slide_h],
+     ["bed", bed_size], ["pullouts", pullouts], ["region", region], ["rail_type", rail_type],
+     ["angle_t", AT], ["door_mode", door_mode], ["fft", FFT], ["reach", REACH],
+     ["slide_max", smax], ["leg_force", leg], ["br_rows", rows]];
+function geom(e, smax = BIG, leg = -1, rows = 2) = env_valid(e) ? carriage_geometry(local_env(e), opts(smax, leg, rows)) : [];
+function ok(Gt) = len(Gt) > 0 && carriage_valid(Gt);
+function vmax(v) = len(v) ? max(v) : 0;
+function vmin(v) = len(v) ? min(v) : 0;
+function vsum(v) = sum(v, len(v));
+function uniq(v) = [for (i = seq(len(v))) if (len([for (j = seq(i)) if (v[j] == v[i]) 1]) == 0) v[i]];
+
+// Pass 1: each tier alone. A mounted door gangs every tier, so they share a
+// front plane (the deepest set-back wins) and a slide length (the shortest wins).
+GA = [for (r = SOLVED) geom(r[0])];
+Y0 = vmax([for (i = seq(K)) if (ok(GA[i])) SOLVED[i][0][4]]);
+ENV = [for (r = SOLVED) let(e = r[0]) MOUNT ? [e[0], e[1], e[2], e[3], max(e[4], Y0), e[5], e[6]] : e];
+GB = [for (e = ENV) geom(e)];
+SMAX = MOUNT ? vmin([for (Gt = GB) if (ok(Gt) && g(Gt, "slide_len") > 0) g(Gt, "slide_len")]) : 0;
+LEGS = [for (Gt = GB) if (ok(Gt)) g(Gt, "leg")];
+LEG = rail_type == "angle" && vmin(LEGS) > 0 ? vmax(LEGS) : -1;   // one stock size of angle
+GANGED = MOUNT && len([for (Gt = GB) if (ok(Gt)) 1]) > 1;
+GC = [for (e = ENV) geom(e, SMAX > 0 ? SMAX : BIG, LEG, GANGED ? 1 : 2)];
+// [tier number, z of its support, G, envelope (cabinet coordinates), keep-out log]
+TL = [for (i = seq(K)) [i + 1, ENV[i][6], GC[i], ENV[i], SOLVED[i][1]]];
+TV = [for (t = TL) if (ok(t[2])) t];
+fits = len(TV) > 0;
+G = fits ? TV[min(test_tier, len(TV) - 1)][2] : [];   // first tier's layout (tests)
+
+// Parts with the same shape share a print file, whichever tiers they come from.
+// A part every tier uses gets no tier label. Order: by family, then tier.
+FAMS = ["rail_L", "rail_R", "base", "front", "rear", "toprail", "bracket", "key"];
+function starts(s, p) = len(s) >= len(p) && len([for (i = seq(len(p))) if (s[i] != p[i]) 1]) == 0;
+function join(v, sep) = len(v) == 0 ? "" : len(v) == 1 ? str(v[0]) : str(v[0], sep, join([for (i = [1 : len(v) - 1]) v[i]], sep));
+function join_and(v) = len(v) <= 2 ? join(v, " & ") : str(v[0], ", ", join_and([for (i = [1 : len(v) - 1]) v[i]]));
+function tier_names(ns) = str(len(ns) > 1 ? "Tiers " : "Tier ", join_and(ns));
+TSPECS = [for (t = TV) part_specs(t[2])];
+ALL = [for (f = FAMS) for (ti = seq(len(TV))) for (s = TSPECS[ti]) if (starts(s[3], f)) [part_sig(TV[ti][2], s), s, TV[ti][0], ti]];
+SIGS = [for (a = ALL) a[0]];
+specs = [for (sg = uniq(SIGS)) let(m = [for (a = ALL) if (a[0] == sg) a], s = m[0][1], ns = uniq([for (a = m) a[2]]),
+                                   tagged = len(ns) < len(TV),
+                                   // keys come with 2 spares per tier; keep 2 for the build
+                                   q = s[0] == "key" ? vsum([for (a = m) a[1][2] - 2]) + 2 : vsum([for (a = m) a[1][2]]))
+    [tagged ? str("t", join(ns, "-"), "_", s[0]) : s[0], tagged ? str(tier_names(ns), ": ", s[1]) : s[1],
+     q, s[3], s[4], s[5], s[6], s[7], s[8], s[9], s[10], s[11], m[0][3]]];   // [12] = tier index in TV
 
 // ---------- Report (the site parses lines starting with PULLGRID) ----------
+// Per-tier lines start "tier=<n> "; everything else covers the whole build.
 function inch(mm) = round(mm / 25.4 * 8) / 8;  // nearest 1/8"
-echo(str("PULLGRID envelope_mm=", [env_w(env), env_d(env), env_h(env)]));
-for (l = solved[1])
-    echo(str("PULLGRID keepout=", l[0], " dodged_by=", ko_option_names[l[1]], " label=", keepout_labels[l[0]]));
+function nrods(Gt) = g(Gt, "n_rods") * g(Gt, "N");
+function nbr(Gt) = MOUNT ? g(Gt, "N") * len(g(Gt, "br_x")) * len(g(Gt, "br_z")) : 0;
+function floor_screws(Gt) = let(N = g(Gt, "N"), nr = g(Gt, "n_rail"), rs = g(Gt, "rail_len") / nr - 36)
+    N * 2 * (rail_type == "angle" ? max(2, ceil(g(Gt, "rail_len") / 120)) : nr * (max(1, ceil(rs / 110)) + 1));
+echo(str("PULLGRID tiers=", K));
+for (t = TL) for (l = t[4])
+    echo(str("PULLGRID keepout=", l[0], " dodged_by=", ko_option_names[l[1]], " label=", keepout_labels[l[0]], K > 1 ? str(", tier ", t[0]) : ""));
 echo(str("PULLGRID hinges=", len(hinge_keepouts)));
-echo(str("PULLGRID door=", door_mode, " region=", region, " rails=", rail_type));
+echo(str("PULLGRID door=", door_mode, " region=", region, " rails=", rail_type, " reach=", REACH));
 if (!fits) echo("PULLGRID ERROR no_fit");
-if (fits) {
-    N = g(G, "N"); sl = g(G, "slide_len"); nr = g(G, "n_rail"); nrods = g(G, "n_rods") * N;
-    rl = g(G, "rod_len"); stick = M ? 1000 : 1828.8;             // M6 x 1 m / 1/4" x 6 ft
-    per_stick = max(1, floor(stick / (rl + 3)));
-    rail_seg = g(G, "rail_len") / nr - 36;
-    floor_screws = N * 2 * (rail_type == "angle" ? max(2, ceil(g(G, "rail_len") / 120)) : nr * (max(1, ceil(rail_seg / 110)) + 1));
-    nbr = MOUNT ? N * len(g(G, "br_x")) * len(g(G, "br_z")) : 0;
-    echo(str("PULLGRID slide_mm=", sl));
-    echo(str("PULLGRID panel_cells=", [g(G, "ny"), g(G, "nz")], " x", g(G, "panels")));
-    echo(str("PULLGRID pullouts=", N));
-    echo(str("PULLGRID carriage_mm=", [g(G, "Wc"), g(G, "Lc"), g(G, "z_top") - g(G, "zs0")]));
+for (t = TL) let(n = t[0], e = t[3], Gt = t[2]) if (!ok(Gt))
+    echo(str("PULLGRID tier=", n, " floor=", t[1], " skipped height=", max(0, round(env_h(e)))));
+else {
+    echo(str("PULLGRID tier=", n, " floor=", t[1], " envelope_mm=", [env_w(e), env_d(e), env_h(e)]));
+    echo(str("PULLGRID tier=", n, " slide_mm=", g(Gt, "slide_len")));
+    echo(str("PULLGRID tier=", n, " panel_cells=", [g(Gt, "ny"), g(Gt, "nz")], " x", g(Gt, "panels")));
+    echo(str("PULLGRID tier=", n, " pullouts=", g(Gt, "N")));
+    echo(str("PULLGRID tier=", n, " carriage_mm=", [g(Gt, "Wc"), g(Gt, "Lc"), g(Gt, "z_top") - g(Gt, "zs0")]));
     // where to put the floor rails: outer face from the interior left wall, front end
     // behind the front plane, and the gap between the two rail walls
-    echo(str("PULLGRID rails_mm=", [for (x = g(G, "xo")) x], " front=", g(G, "y_f"), " spacing=", g(G, "wp") - 2 * g(G, "RAIL_T")));
-    echo(str("PULLGRID boards_y=", chunks(g(G, "ny")), " boards_z=", chunks(g(G, "nz")),
+    echo(str("PULLGRID tier=", n, " rails_mm=", [for (x = g(Gt, "xo")) x], " front=", g(Gt, "y_f"), " spacing=", g(Gt, "wp") - 2 * g(Gt, "RAIL_T")));
+    echo(str("PULLGRID tier=", n, " boards_y=", chunks(g(Gt, "ny")), " boards_z=", chunks(g(Gt, "nz")),
              " type=", panel_thickness < 5 ? "lite" : "full"));
-    echo(str("PULLGRID cut=", nrods, " len=", rl, " item=tie rod"));
-    if (rail_type == "angle") echo(str("PULLGRID cut=", 2 * N, " len=", g(G, "rail_len"), " item=aluminum angle rail"));
-    if (MOUNT) echo(str("PULLGRID bracket_mm=", g(G, "br_len")));
+    if (MOUNT) echo(str("PULLGRID tier=", n, " bracket_mm=", g(Gt, "br_len")));
+}
+if (fits) {
+    GS = [for (t = TV) t[2]];
+    stick = M ? 1000 : 1828.8;                                         // M6 x 1 m / 1/4" x 6 ft
+    astick = M ? 1000 : 1219.2;                                        // angle: 1 m / 4 ft
+    rods = vsum([for (Gt = GS) nrods(Gt)]);
+    brackets = vsum([for (Gt = GS) nbr(Gt)]);
+    RLS = uniq([for (Gt = GS) g(Gt, "rod_len")]);
+    ALS = uniq([for (Gt = GS) g(Gt, "rail_len")]);
+    SLS = uniq([for (Gt = GS) if (g(Gt, "slide_len") > 0) g(Gt, "slide_len")]);
+    for (rl = RLS) echo(str("PULLGRID cut=", vsum([for (Gt = GS) if (g(Gt, "rod_len") == rl) nrods(Gt)]), " len=", rl, " item=tie rod"));
+    if (rail_type == "angle") for (al = ALS)
+        echo(str("PULLGRID cut=", vsum([for (Gt = GS) if (g(Gt, "rail_len") == al) 2 * g(Gt, "N")]), " len=", al, " item=aluminum angle rail"));
     for (i = seq(len(specs))) let(s = specs[i], sz = print_size(s))
         echo(str("PULLGRID part=", i, " id=", s[0], " qty=", s[2], " size=", sz, " label=", s[1]));
     // shopping list, in the names each market uses
-    if (sl > 0) echo(str("PULLGRID hw=", N, " item=", M
-        ? str("pair of ", sl, " mm full-extension ball-bearing drawer runners (45 mm, side-mount, 12.7 mm clearance)")
-        : str("pair of ", round(sl / 25.4), "in full-extension side-mount ball-bearing drawer slides (45 mm tall, 1/2in clearance)")));
-    if (rail_type == "angle") let(leg = g(G, "leg"), total = 2 * N * g(G, "rail_len"))
-        echo(str("PULLGRID hw=", ceil(total / (M ? 1000 : 1219.2)), " item=", M
+    for (sl = SLS) let(n = vsum([for (Gt = GS) if (g(Gt, "slide_len") == sl) g(Gt, "N")]))
+        echo(str("PULLGRID hw=", n, " item=", M
+            ? str("pair of ", sl, " mm full-extension ball-bearing drawer runners (45 mm, side-mount, 12.7 mm clearance)")
+            : str("pair of ", round(sl / 25.4), "in full-extension side-mount ball-bearing drawer slides (45 mm tall, 1/2in clearance)")));
+    if (rail_type == "angle") let(leg = vmax([for (Gt = GS) g(Gt, "leg")]),
+        // whole rails per stick, with a saw kerf
+        sticks = vsum([for (al = ALS) ceil(vsum([for (Gt = GS) if (g(Gt, "rail_len") == al) 2 * g(Gt, "N")]) / max(1, floor(astick / (al + 3))))]))
+        echo(str("PULLGRID hw=", sticks, " item=", M
             ? str("aluminium equal angle ", leg > 0 ? leg : 50, " x ", leg > 0 ? leg : 50, " mm, 1.5-3 mm thick, 1 m lengths")
             : str("aluminum angle ", leg == 38.1 ? "1-1/2in" : "2in", ", 1/16-1/8in thick, 4 ft lengths")));
-    echo(str("PULLGRID hw=", ceil(nrods / per_stick), " item=", M ? "M6 threaded rod, 1 m" : "1/4in-20 threaded rod, 6 ft"));
-    echo(str("PULLGRID hw=", 2 * nrods, " item=", M ? "M6 nuts (acorn nuts look tidier at the front)" : "1/4in-20 hex nuts (acorn nuts look tidier at the front)"));
-    echo(str("PULLGRID hw=", 2 * nrods, " item=", M ? "M6 flat washers" : "1/4in flat washers"));
-    echo(str("PULLGRID hw=", floor_screws, " item=", M ? "4 x 20 mm wood screws (floor rails to cabinet)" : "#8 x 3/4in wood screws (floor rails to cabinet)"));
-    echo(str("PULLGRID hw=", N * 16 + 2 * nbr, " item=", M ? "4 x 13 mm pan-head self-tapping screws (slides; brackets to plate)" : "#8 x 1/2in pan-head sheet-metal screws (slides; brackets to plate)"));
-    if (MOUNT) echo(str("PULLGRID hw=", 2 * nbr, " item=", M ? "4 x 16 mm wood screws (brackets to door)" : "#8 x 5/8in wood screws (brackets to door)"));
+    echo(str("PULLGRID hw=", vsum([for (rl = RLS) ceil(vsum([for (Gt = GS) if (g(Gt, "rod_len") == rl) nrods(Gt)]) / max(1, floor(stick / (rl + 3))))]),
+             " item=", M ? "M6 threaded rod, 1 m" : "1/4in-20 threaded rod, 6 ft"));
+    echo(str("PULLGRID hw=", 2 * rods, " item=", M ? "M6 nuts (acorn nuts look tidier at the front)" : "1/4in-20 hex nuts (acorn nuts look tidier at the front)"));
+    echo(str("PULLGRID hw=", 2 * rods, " item=", M ? "M6 flat washers" : "1/4in flat washers"));
+    echo(str("PULLGRID hw=", vsum([for (Gt = GS) floor_screws(Gt)]), " item=", M ? "4 x 20 mm wood screws (floor rails to cabinet)" : "#8 x 3/4in wood screws (floor rails to cabinet)"));
+    echo(str("PULLGRID hw=", vsum([for (Gt = GS) g(Gt, "N") * 16]) + 2 * brackets, " item=", M ? "4 x 13 mm pan-head self-tapping screws (slides; brackets to plate)" : "#8 x 1/2in pan-head sheet-metal screws (slides; brackets to plate)"));
+    if (MOUNT) echo(str("PULLGRID hw=", 2 * brackets, " item=", M ? "4 x 16 mm wood screws (brackets to door)" : "#8 x 5/8in wood screws (brackets to door)"));
+    if (MOUNT && len(TV) > 1) echo(str("PULLGRID hw=8 item=", M ? "M4 flat washers (shims, if one tier sits back from the door)" : "#8 flat washers (shims, if one tier sits back from the door)"));
     echo("PULLGRID hw=1 item=CA glue or epoxy (plate seams)");
     for (s = specs) let(sz = print_size(s)) if (sz[0] > bed_size || sz[1] > bed_size)
         echo(str("PULLGRID WARNING part_exceeds_bed ", s[0]));
-    if (sl == 0) echo("PULLGRID WARNING no_standard_slide_fits");
-    if (g(G, "Wc") < 100) echo("PULLGRID WARNING too_narrow");
-    if (rail_type == "angle" && g(G, "leg") == 0) echo("PULLGRID WARNING angle_too_short");
+    if (len([for (Gt = GS) if (g(Gt, "slide_len") == 0) 1])) echo("PULLGRID WARNING no_standard_slide_fits");
+    if (len([for (Gt = GS) if (g(Gt, "Wc") < 100) 1])) echo("PULLGRID WARNING too_narrow");
+    if (rail_type == "angle" && vmin([for (Gt = GS) g(Gt, "leg")]) == 0) echo("PULLGRID WARNING angle_too_short");
     if (MOUNT && door_thickness < 15) echo("PULLGRID WARNING door_too_thin");
+    if (len(TV) < K) echo("PULLGRID WARNING tier_skipped");
 }
 
 // ---------- Render ----------
 P = part == "frame" ? "carriage" : part;  // v0 name
-// door: in mount mode it rides on the pull-out; kept doors are shown open at 90 degrees
+SHELF_LIST = [for (s = SH) [s, shelf_thickness, shelf_setback]];
+// door: in mount mode it rides on the pull-outs (one door, every tier); kept doors are shown open at 90 degrees
 DOOR_Y = -FFT - 2;
 module door_part() {
-    dw = (opening_w + 2 * door_overlay) / (MOUNT && fits ? g(G, "N") : 1);
+    dw = opening_w + 2 * door_overlay;
     z0 = o_b - door_overlay; h = opening_h + 2 * door_overlay;
-    if (MOUNT && fits)
-        for (i = seq(g(G, "N"))) translate([o_l - door_overlay + i * dw + 1, DOOR_Y - door_thickness, z0]) cube([dw - 2, door_thickness, h]);
+    if (MOUNT && fits) translate([o_l - door_overlay, DOOR_Y - door_thickness, z0]) cube([dw, door_thickness, h]);
     else if (hinge_side != "none") {
         hx = hinge_side == "left" ? o_l - door_overlay : front_w - o_r + door_overlay;
         translate([hinge_side == "left" ? hx - door_thickness : hx, DOOR_Y - dw, z0]) cube([door_thickness, dw, h]);
     }
 }
-if (fits) {
-    ext = -extension * g(G, "slide_len");
-    for (x = g(G, "xo")) translate([x, 0, 0]) {
-        if (P == "assembly") {
-            if (rail_type == "printed") { color("DimGray") rail_full(G, "L"); color("DimGray") rail_full(G, "R"); }
-            color("Silver") hardware_part(G, "fixed");
-            translate([0, ext, 0]) {
-                color("SteelBlue") carriage_part(G);
-                color("Gainsboro") boards_part(G);
-                color("Silver") hardware_part(G, "moving");
-            }
+module tier_parts(Gt, ext) for (x = g(Gt, "xo")) translate([x, 0, 0]) {
+    if (P == "assembly") {
+        if (rail_type == "printed") { color("DimGray") rail_full(Gt, "L"); color("DimGray") rail_full(Gt, "R"); }
+        color("Silver") hardware_part(Gt, "fixed");
+        translate([0, ext, 0]) {
+            color("SteelBlue") carriage_part(Gt);
+            color("Gainsboro") boards_part(Gt);
+            color("Silver") hardware_part(Gt, "moving");
         }
-        if (P == "carriage") carriage_part(G);
-        if (P == "boards") boards_part(G);
-        if (P == "rails" && rail_type == "printed") { rail_full(G, "L"); rail_full(G, "R"); }
-        if (P == "slides_fixed") hardware_part(G, "fixed");
-        if (P == "slides_moving") hardware_part(G, "moving");
     }
-    if (P == "assembly") translate([0, MOUNT ? ext : 0, 0]) color("Tan", 0.6) door_part();
+    if (P == "carriage") carriage_part(Gt);
+    if (P == "boards") boards_part(Gt);
+    if (P == "rails" && rail_type == "printed") { rail_full(Gt, "L"); rail_full(Gt, "R"); }
+    if (P == "slides_fixed") hardware_part(Gt, "fixed");
+    if (P == "slides_moving") hardware_part(Gt, "moving");
+}
+if (fits) {
+    // ganged tiers all travel the shared slide length; kept-door tiers each pull their own
+    for (t = TV) translate([0, 0, t[1]]) tier_parts(t[2], -extension * g(t[2], "slide_len"));
+    if (P == "assembly") translate([0, MOUNT ? -extension * g(TV[0][2], "slide_len") : 0, 0]) color("Tan", 0.6) door_part();
     if (P == "door") door_part();
-    if (P == "print" && print_index >= 0 && print_index < len(specs)) print_part(G, specs[print_index]);
-    if (P == "envelope")
-        color("SteelBlue", 0.4) translate([env[0], env[4], env[2]]) cube([env_w(env), env_d(env), env_h(env)]);
+    if (P == "print" && print_index >= 0 && print_index < len(specs))
+        let(s = specs[print_index]) print_part(TV[s[12]][2], s);
+    if (P == "envelope") for (t = TV) let(e = t[3])
+        color("SteelBlue", 0.4) translate([e[0], e[4], e[2]]) cube([env_w(e), env_d(e), env_h(e)]);
 }
 if (P == "assembly" && show_cabinet) {
     cabinet_preview(front_w, front_h, r_w, r_h, interior_depth, o_l, o_r, o_b, o_t);
+    shelves_preview(front_w, interior_depth, SHELF_LIST);
     keepout_preview(all_keepouts);
 }
-if (P == "cabinet") cabinet_preview(front_w, front_h, r_w, r_h, interior_depth, o_l, o_r, o_b, o_t);
+if (P == "cabinet") {
+    cabinet_preview(front_w, front_h, r_w, r_h, interior_depth, o_l, o_r, o_b, o_t);
+    shelves_preview(front_w, interior_depth, SHELF_LIST);
+}
 if (P == "keepouts") keepout_preview(all_keepouts);

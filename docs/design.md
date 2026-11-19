@@ -19,34 +19,42 @@ The code targets **OpenSCAD 2021.01**, because MakerWorld's customizer lags behi
 ## The pipeline
 
 1. **Defaults** (`pullgrid.scad`): basic inputs fill in the advanced ones (`-1` = auto), and hinges become keep-out boxes unless the door is mounted.
-2. **Sweep envelope** (`lib/envelope.scad`): the largest box that passes through the opening, fits the interior over its full travel, and misses every keep-out.
-3. **Carriage layout** (`lib/carriage.scad`, `carriage_geometry()`): splits wide envelopes into side-by-side pull-outs, sizes the frame to whole openGrid cells, picks the slide length and angle size, and places tie rods and door brackets. The result is a key/value list `G`, read with `g(G, "key")`. Modules take `G` and never read globals.
-4. **Parts** (`part_specs()`): each part family is split along one axis to fit the bed. Each spec carries its assembled bounding box and a print rotation, so `print_part()` can slice, rotate and drop it onto z = 0.
+2. **Tiers** (`pullgrid.scad`): fixed shelves split the cabinet into gaps, each solved on its own.
+3. **Sweep envelope** (`lib/envelope.scad`), per tier: the largest box that passes through the opening, fits the interior over its full travel, and misses every keep-out. The envelope carries `zf`, the height its rails stand on. Keep-outs block from `zf` up, and only a keep-out covering the whole width and rail run can raise `zf` (the rails stand on it).
+4. **Carriage layout** (`lib/carriage.scad`, `carriage_geometry()`), per tier, in **tier-local coordinates** (z = 0 is what the rails stand on): splits wide envelopes into side-by-side pull-outs, sizes the frame to whole openGrid cells, picks the slide length and angle size, and places tie rods and door brackets. The result is a key/value list `G`, read with `g(G, "key")`. Modules take `G` and never read globals. With a mounted door the tiers are solved three times: alone, then with a shared front plane, then with a shared slide length and angle size.
+5. **Parts** (`part_specs()`): each part family is split along one axis to fit the bed. Each spec carries its assembled bounding box and a print rotation, so `print_part()` can slice, rotate and drop it onto z = 0. Specs from every tier are grouped by a **shape signature** (`part_sig()`, everything relative to the part itself), so a base that every tier shares is one file, not one per tier.
 
 ## The report
 
 OpenSCAD `echo` lines starting with `PULLGRID` are the interface between the model and the site:
 
 ```
-PULLGRID envelope_mm=[274, 550, 595]
-PULLGRID pullouts=1
-PULLGRID part=0 id=base_1 qty=1 size=[241.6, 177.5, 45] label=Base 1/3
-PULLGRID hw=1 item=1/4in-20 threaded rod, 6 ft
-PULLGRID cut=3 len=561 item=tie rod
-PULLGRID WARNING angle_too_short
+PULLGRID tiers=2
+PULLGRID door=mount region=inch rails=angle reach=both
+PULLGRID tier=1 floor=0 envelope_mm=[274, 550, 361]
+PULLGRID tier=1 slide_mm=508
+PULLGRID tier=1 pullouts=1
+PULLGRID tier=2 floor=400 envelope_mm=[274, 550, 222]
+PULLGRID tier=3 floor=640 skipped height=40
+PULLGRID part=0 id=base_1 qty=2 size=[241.6, 177.5, 45] label=Base 1/3
+PULLGRID part=3 id=t1_front_1 qty=1 size=[241.6, 177.3, 16] label=Tier 1: Front plate 1/2
+PULLGRID hw=2 item=1/4in-20 threaded rod, 6 ft
+PULLGRID cut=6 len=561 item=tie rod
+PULLGRID WARNING tier_skipped
 ```
 
-Adding new keys is fine. Changing the format of existing ones breaks the site.
+Lines about one tier start with `tier=<n> `; everything else (parts, hardware, cuts, warnings) covers the whole build. Part ids and labels carry a tier prefix only when not every tier uses that part. Adding new keys is fine. Changing the format of existing ones breaks the site.
 
 ## Tests
 
 ```sh
-tests/run.sh            # smoke tests: 34 cabinets and modes, checks report lines
-tests/interference.sh   # every pair of parts must not overlap; tie rods must thread every hole
+tests/run.sh            # smoke tests: 50+ cabinets and modes, checks report lines
+tests/interference.sh   # every pair of parts must not overlap; tie rods must thread every hole;
+                        # nothing in any tier may hit a keep-out or shelf
 tests/print_parts.sh    # every print part exports, sits on z = 0 and fits the bed
 ```
 
-The interference test intersects pairs of parts and measures the result's volume. Zero-volume face contact is fine; anything over 1 mm³ is a collision. All three suites accept extra `-D` arguments, so you can run them against any configuration, and CI runs all three.
+The interference test intersects pairs of parts and measures the result's volume. Part pairs use one tier (`-D test_tier=k` picks which); the whole-cabinet pairs use every tier in cabinet coordinates. Zero-volume face contact is fine; anything over 1 mm³ is a collision. All three suites accept extra `-D` arguments, so you can run them against any configuration, and CI runs all three.
 
 ## Why openGrid boards aren't modeled
 

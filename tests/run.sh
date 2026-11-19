@@ -55,6 +55,28 @@ run inch_rod        "1/4in-20 threaded"   -D 'region="inch"'
 run rod_cut         "item=tie rod"        -D 'panel_count=2'
 run deep_28in       "slide_mm=711.2"      -D 'interior_depth=760'
 run thin_door       "door_too_thin"       -D 'door_thickness=12'
+run metric_kerf     "hw=2 item=aluminium" -D 'region="metric"'
+# floor obstacles: rails stand on a full platform, steer around anything smaller
+run platform        "tier=1 floor=40"     -D 'keepouts=[[0,0,0,400,600,40]]' -D 'rail_type="printed"'
+run floor_partial   "dodged_by=back"      -D 'keepouts=[[100,300,0,80,300,60]]'
+run under_ff_rail   "dodged_by="          -D 'keepouts=[[0,0,0,60,600,10]]'
+# fixed shelves -> tiers
+run shelves         "tier=2 floor=400"    -D 'opening_h=1200' -D 'shelves=[400,800]'
+run shelf_unsorted  "tier=3 floor=800"    -D 'opening_h=1200' -D 'shelves=[800,400]'
+run shelf_skip      "tier_skipped"        -D 'shelves=[590]'
+run shelf_merge     "Tiers 1, 2 & 4: Front plate"   -D 'opening_h=1500' -D 'opening_w=380' -D 'shelves=[400,800,1150]'
+run shared_base     "id=base_1 qty=8"  -D 'opening_h=1500' -D 'opening_w=380' -D 'shelves=[400,800,1150]'
+run gang_brackets   "id=bracket qty=6"    -D 'opening_h=1200' -D 'shelves=[400,800]'
+run gang_shims      "shims"               -D 'opening_h=1200' -D 'shelves=[400,800]'
+run gang_slide      "tier=1 slide_mm=355.6" -D 'opening_h=900' -D 'shelves=[400]' -D 'keepouts=[[0,400,420,400,200,100]]'
+run keep_no_gang    "tier=1 slide_mm=508" -D 'opening_h=900' -D 'shelves=[400]' -D 'keepouts=[[0,400,420,400,200,100]]' -D 'door_mode="keep"'
+run gang_setback    "tier=1 rails_mm=.13. front=46" -D 'opening_h=900' -D 'shelves=[400]' -D 'shelf_setback=40'
+run printed_tiers   "Tier 1: Floor rail"  -D 'opening_h=900' -D 'shelves=[400]' -D 'rail_type="printed"'
+# one-sided tiers
+run reach_auto      "reach=right"         -D 'door_mode="keep"' -D 'door_opens="only_90"'
+run reach_auto_r    "reach=left"          -D 'door_mode="keep"' -D 'door_opens="only_90"' -D 'hinge_side="right"'
+run reach_mount     "reach=both"          -D 'door_opens="only_90"'
+run reach_one_panel "x1"                  -D 'reach_from="left"' -D 'panel_count=2'
 
 rm -rf "$OUT"
 exit $fail

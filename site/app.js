@@ -320,6 +320,8 @@ function apply(d, out) {
     if (name === "carriage" || name === "rails") meshVolume += v;
   }
   applyExtension();
+  buildUnitChips();
+  applyView();
   if (firstFit) { fitView(); firstFit = false; }
   showReport();
   hingeHint();
@@ -350,7 +352,9 @@ function parseReport(log) {
     else if ((x = t.match(/^boards_y=\[([^\]]*)\] boards_z=\[([^\]]*)\] type=(\w+)/)))
       T.boards = { y: x[1].split(",").map(Number), z: x[2].split(",").map(Number), type: x[3] };
     else if ((x = t.match(/^bracket_mm=([\d.]+)/))) T.bracket = +x[1];
-    else if ((x = t.match(/^pullout=(\d+) reach=(\w+) panels=(\d+)/))) (T.units ||= [])[+x[1] - 1] = { p: +x[1], reach: x[2], panels: +x[3] };
+    else if ((x = t.match(/^pullout=(\d+) reach=(\w+) panels=(\d+)(?: box=\[([^\]]+)\] grid=\[([^\]]+)\])?/)))
+      (T.units ||= [])[+x[1] - 1] = { p: +x[1], reach: x[2], panels: +x[3],
+        box: x[4] && x[4].split(",").map(Number), grid: x[5] && x[5].split(",").map(Number) };
     else if ((x = t.match(/^tiers=(\d+)/))) r.nTiers = +x[1];
     else if ((x = t.match(/^part=(\d+) id=(\S+) qty=(\d+) size=\[([^\]]+)\] label=(.*)$/)))
       r.parts.push({ index: +x[1], id: x[2], qty: +x[3], size: x[4].split(",").map(Number), label: x[5] });
@@ -716,22 +720,154 @@ function stlVolume(geo) {  // cm³·1000 = mm³; signed tetrahedra
     v += (p[i] * (p[i + 4] * p[i + 8] - p[i + 5] * p[i + 7]) - p[i + 1] * (p[i + 3] * p[i + 8] - p[i + 5] * p[i + 6]) + p[i + 2] * (p[i + 3] * p[i + 7] - p[i + 4] * p[i + 6])) / 6;
   return Math.abs(v);
 }
+// ---------- view controls (display only: nothing here changes the model) ----------
+const CAT = { carriage: "printed", rails: "printed", boards: "boards", slides_moving: "hardware", slides_fixed: "hardware",
+              door: "door", cabinet: "cabinet", keepouts: "keepouts" };
+const SPLIT = new Set(["carriage", "rails", "boards", "slides_moving", "slides_fixed"]);   // one mesh per pull-out
+const view = (() => {
+  const d = { show: { printed: true, boards: true, hardware: true, door: true, cabinet: true, keepouts: true },
+              printed: "solid", boards: "plain", hidden: {} };
+  try {
+    const v = JSON.parse(localStorage.getItem("pullgrid-view"));
+    if (v) return { ...d, ...v, show: { ...d.show, ...v.show }, hidden: {} };   // hidden pull-outs reset each visit
+  } catch {}
+  return d;
+})();
+const saveView = () => { try { localStorage.setItem("pullgrid-view", JSON.stringify({ ...view, hidden: undefined })); } catch {} };
+
+const ACCENT = 0xe0662d;
+const lineMat = (color, opacity = 1) => new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity });
+const lineSolid = Object.fromEntries(Object.entries(edgeColor).map(([k, c]) => [k, lineMat(c, k === "cabinet" ? 0.55 : 1)]));
+const look = {
+  hlPrinted: std(ACCENT, { roughness: 0.5 }), hlLine: lineMat(0x8a3510),
+  dim: std(0xb9b4a8, { ...ghost, opacity: 0.16 }), dimLine: lineMat(0x9a9488, 0.25),
+  xray: std(0x2f6d9c, { ...ghost, opacity: 0.1 }), xrayLine: lineMat(ACCENT),
+};
+// openGrid mock-up: 28 mm cells drawn on the board faces, from where the
+// model says the cells start (object coordinates = cabinet, pull-out closed)
+function gridMat(origin) {
+  const m = std(0xd6d2c8, { roughness: 0.8 });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.uOrigin = { value: new THREE.Vector2(origin[0], origin[1]) };
+    sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vObj;\nvarying vec3 vObjN;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvObj = position;\nvObjN = normal;");
+    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vObj;\nvarying vec3 vObjN;\nuniform vec2 uOrigin;")
+      .replace("#include <color_fragment>", `#include <color_fragment>
+        if (abs(vObjN.x) > 0.5) {
+          vec2 d = abs(fract((vObj.yz - uOrigin) / 28.0) - 0.5);
+          float e = max(d.x, d.y);
+          diffuseColor.rgb *= e < 0.3 ? 0.58 : (e > 0.47 ? 0.82 : 1.0);
+        }`);
+  };
+  m.customProgramCacheKey = () => "pullgrid-cells";
+  return m;
+}
+
+// split one rendered part into a mesh per pull-out, by the boxes the model reports
+function splitByUnit(geo, units) {
+  const p = geo.attributes.position.array, idx = units.map(() => []), rest = [];
+  for (let i = 0; i < p.length; i += 9) {
+    const x = (p[i] + p[i + 3] + p[i + 6]) / 3, z = (p[i + 2] + p[i + 5] + p[i + 8]) / 3;
+    let k = -1;
+    for (let j = 0; j < units.length && k < 0; j++) {
+      const b = units[j].box;
+      if (x >= b[0] - 1 && x <= b[1] + 1 && z >= b[2] - 1 && z <= b[3] + 1) k = j;
+    }
+    (k >= 0 ? idx[k] : rest).push(i);
+  }
+  const make = (list) => {
+    const a = new Float32Array(list.length * 9);
+    list.forEach((i, n) => a.set(p.subarray(i, i + 9), n * 9));
+    const g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.BufferAttribute(a, 3));
+    return g;
+  };
+  const out = units.map((u, j) => (idx[j].length ? { geo: make(idx[j]), unit: `${u.t}.${u.p}`, grid: u.grid } : null)).filter(Boolean);
+  if (rest.length) out.push({ geo: make(rest), unit: null, grid: units[0].grid });
+  geo.dispose();
+  return out;
+}
+
 function setPart(name, stl) {
   const g = groups[name];
-  for (const c of g.children) c.geometry.dispose();
+  for (const c of g.children) { c.geometry.dispose(); c.userData.grid?.dispose(); }
   g.clear();
   if (!stl || stl.byteLength < 134) return 0;
   const geo = loader.parse(stl.buffer.slice(stl.byteOffset, stl.byteOffset + stl.byteLength));
-  geo.computeVertexNormals();
-  const mesh = new THREE.Mesh(geo, mats[name]);
-  const line = new THREE.LineSegments(new THREE.EdgesGeometry(geo, 25),
-    new THREE.LineBasicMaterial({ color: edgeColor[name], transparent: name === "cabinet", opacity: name === "cabinet" ? 0.55 : 1 }));
-  if (name === "keepouts") mesh.renderOrder = line.renderOrder = 2;
-  if (name === "cabinet") mesh.renderOrder = line.renderOrder = 3;
-  if (name === "door") mesh.renderOrder = line.renderOrder = 4;
-  g.add(mesh, line);
-  return stlVolume(geo);
+  const vol = stlVolume(geo);
+  const units = report?.units || [];
+  const pieces = SPLIT.has(name) && units.length && units.every((u) => u.box)
+    ? splitByUnit(geo, units) : [{ geo, unit: null, grid: units[0]?.grid }];
+  for (const pc of pieces) {
+    pc.geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(pc.geo, mats[name]);
+    const line = new THREE.LineSegments(new THREE.EdgesGeometry(pc.geo, 25), lineSolid[name]);
+    mesh.userData = { name, unit: pc.unit, grid: name === "boards" && pc.grid ? gridMat(pc.grid) : null };
+    line.userData = { name, unit: pc.unit, line: true };
+    const order = { keepouts: 2, cabinet: 3, door: 4 }[name];
+    if (order) mesh.renderOrder = line.renderOrder = order;
+    g.add(mesh, line);
+  }
+  return vol;
 }
+
+// materials and visibility from the view settings
+function applyView() {
+  for (const [name, grp] of Object.entries(groups)) {
+    const cat = CAT[name], printed = cat === "printed", ghosted = name === "cabinet" || name === "keepouts";
+    grp.visible = view.show[cat] !== false;
+    for (const o of grp.children) {
+      const u = o.userData;
+      o.visible = !u.unit || !view.hidden[u.unit];
+      if (u.line) {
+        o.material = view.printed === "highlight" ? (printed ? look.hlLine : ghosted ? lineSolid[name] : look.dimLine)
+                   : view.printed === "outline" && printed ? look.xrayLine : lineSolid[name];
+      } else {
+        const base = name === "boards" && view.boards === "grid" && u.grid ? u.grid : mats[name];
+        o.material = view.printed === "highlight" ? (printed ? look.hlPrinted : ghosted ? mats[name] : look.dim)
+                   : view.printed === "outline" && printed ? look.xray : base;
+      }
+    }
+  }
+  for (const b of $$(".legend button[data-cat]")) {
+    const on = view.show[b.dataset.cat] !== false;
+    b.classList.toggle("off", !on);
+    b.setAttribute("aria-pressed", on);
+  }
+  for (const seg of $$("#viewpanel .seg[data-view]"))
+    for (const b of $$("button", seg)) b.classList.toggle("on", b.dataset.v === view[seg.dataset.view]);
+  for (const b of $$("#vunits button[data-unit]")) {
+    const on = !view.hidden[b.dataset.unit];
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", on);
+  }
+}
+function buildUnitChips() {
+  const units = report?.units || [], row = $("#vunits-row");
+  row.hidden = units.length < 2;
+  $("#vunits").innerHTML = units.map((u) => `<button type="button" data-unit="${u.t}.${u.p}">${esc(unitName(u, report))}</button>`).join("") +
+    (units.length > 1 ? `<button type="button" class="all" data-unit-all>Show all</button>` : "");
+}
+$(".legend").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-cat]");
+  if (!b) return;
+  view.show[b.dataset.cat] = view.show[b.dataset.cat] === false;
+  saveView(); applyView();
+});
+$("#viewpanel").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  const seg = b.closest(".seg[data-view]");
+  if (seg) view[seg.dataset.view] = b.dataset.v;
+  else if (b.dataset.unit) { if (view.hidden[b.dataset.unit]) delete view.hidden[b.dataset.unit]; else view.hidden[b.dataset.unit] = true; }
+  else if ("unitAll" in b.dataset) view.hidden = {};
+  saveView(); applyView();
+});
+$("#view-toggle").onclick = () => {
+  const p = $("#viewpanel");
+  p.hidden = !p.hidden;
+  $("#view-toggle").setAttribute("aria-expanded", !p.hidden);
+};
 
 const ext = $("#extension");
 function applyExtension() {

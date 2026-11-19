@@ -80,6 +80,8 @@ run reach_auto      "reach=right"         -D 'door_mode="keep"' -D 'door_opens="
 run reach_auto_r    "reach=left"          -D 'door_mode="keep"' -D 'door_opens="only_90"' -D 'hinge_side="right"'
 run reach_mount     "reach=both"          -D 'door_opens="only_90"'
 run reach_one_panel "pullout=1 reach=left panels=1" -D 'reach_from="left"' -D 'panel_count=2'
+# viewer: each pull-out's box and where its cells start
+run unit_box        "pullout=2 reach=right panels=1 box=.251, 487, 0, 594.5. grid=.6.6, 21.3." -D 'opening_w=480'
 # no door: nothing to dodge, no brackets, both sides
 run door_none       "door=none region"    -D 'door_mode="none"'
 run door_none_hinge "hinges=0"            -D 'door_mode="none"' -D 'hinge_side="left"'

@@ -289,8 +289,12 @@ else {
     echo(str("PULLGRID tier=", n, " boards_y=", chunks(g(Gt, "ny")), " boards_z=", chunks(g(Gt, "nz")),
              " type=", panel_thickness < 5 ? "lite" : "full"));
     if (MOUNT) echo(str("PULLGRID tier=", n, " bracket_mm=", g(Gt, "br_len")));
-    // each pull-out, left to right: which sides you can reach, how many panels
-    for (u = t[5]) echo(str("PULLGRID tier=", n, " pullout=", u[0], " reach=", u[1], " panels=", g(u[2], "panels")));
+    // each pull-out, left to right: which sides you can reach, how many panels, and
+    // for the viewer: its box in cabinet x/z, and where its openGrid cells start (y, z)
+    for (u = t[5]) let(Gu = u[2], x0 = g(Gu, "xo")[0])
+        echo(str("PULLGRID tier=", n, " pullout=", u[0], " reach=", u[1], " panels=", g(Gu, "panels"),
+                 " box=", [x0, x0 + g(Gu, "wp"), t[1], t[1] + g(Gu, "z_top") + 1],
+                 " grid=", [g(Gu, "y_f") + 0.6, t[1] + g(Gu, "zb") + 0.3]));
 }
 if (fits) {
     GS = [for (u = UNITS) u[2]];

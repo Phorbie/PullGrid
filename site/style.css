@@ -157,3 +157,18 @@ table.parts button:hover { border-color: var(--ink); }
 .sides .srow b { font-weight: 500; font-size: 13px; min-width: 104px; }
 .sides .srow .seg { flex: 0 1 auto; }
 .sides .srow small { width: 100%; margin: 0; }
+
+.vbtns { display: flex; gap: 6px; }
+.legend button { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; padding: 2px 0; }
+.legend button:hover { color: var(--ink); }
+.legend button.off { opacity: .45; text-decoration: line-through; }
+.viewpanel { position: absolute; top: 48px; right: 10px; width: min(360px, calc(100% - 20px)); background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; display: grid; gap: 8px; }
+.viewpanel[hidden] { display: none; }
+.viewpanel .vrow { display: grid; gap: 4px; }
+.viewpanel .vrow > span { color: var(--muted); }
+.viewpanel .seg button { padding: 5px 10px; }
+.viewpanel small { color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1px solid var(--line); background: var(--card); color: var(--muted); border-radius: 999px; padding: 4px 10px; font: inherit; font-size: 12px; cursor: pointer; }
+.chips button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.chips button.all { border-style: dashed; }

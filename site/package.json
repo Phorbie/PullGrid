@@ -3,8 +3,11 @@
   "private": true,
   "description": "PullGrid generator site — static, no bundler. build.sh copies vendor files into _site.",
   "license": "CC-BY-SA-4.0",
-  "scripts": { "build": "bash build.sh" },
+  "scripts": {
+    "build": "bash build.sh"
+  },
   "dependencies": {
+    "marked": "^14.1.4",
     "openscad-wasm-prebuilt": "1.2.0",
     "three": "^0.170.0"
   }

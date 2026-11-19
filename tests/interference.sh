@@ -2,7 +2,7 @@
 # Interference check: tests/interference.sh [extra -D args...]
 cd "$(dirname "$0")/.."
 fail=0
-for k in $(seq 0 15); do
+for k in $(seq 0 24); do
   out=$(openscad -o /tmp/pg_int_$k.stl -D 'part="none"' -D "pair=$k" "$@" tests/interference.scad 2>&1)
   name=$(echo "$out" | grep -o 'PAIR [^"]*' | head -1)
   if echo "$out" | grep -q "top level object is empty"; then echo "ok   $name"; continue; fi

@@ -33,6 +33,7 @@ jobs:
       - run: npm ci
         working-directory: site
       - run: bash site/build.sh _site
+      - run: node tests/check_links.mjs _site
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

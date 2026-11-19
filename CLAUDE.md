@@ -9,4 +9,7 @@
 - Frame layout lives in a key/value list `G` from `carriage_geometry()`; read it with `g(G, "key")`. Modules take `G`, never globals.
 - The site renders with `--backend=manifold` (~40x faster than CGAL). Desktop 2021.01 uses CGAL, so keep CSG simple.
 - openGrid pitch is 28 mm. Tiles are NOT modeled: the frame holds standard boards in grooves. The popular openGrid tile generator is CC BY-NC-SA, which conflicts with our CC BY-SA, so don't copy from it.
+- Non-printed hardware must be stocked in big-box stores in both inch (US, CA) and metric (UK, IE, AU, NZ) markets. Printed holes accept both sizes; no size-specific nut traps. `region` switches slide lengths, stock sizes and BOM names.
+- Door mount is the default mode: hinges are dropped from the keep-outs and the front plate becomes an open frame with bracket pads. Tie rods clamp the carriage; only plate seams use glued bowtie keys.
+- Docs live in `docs/*.md` (GitHub renders them). `site/build-docs.mjs` turns them into site pages; `tests/check_links.mjs _site` checks every local link and anchor. Doc images in `docs/img/` are rendered from the model (`openscad --render` for print parts) or hand-drawn SVGs.
 - Site (`site/`): plain ES modules, no bundler. `site/build.sh` assembles `_site/` and vendors OpenSCAD WASM + three.js from npm. The worker passes `-D` values verbatim, so strings need quotes.

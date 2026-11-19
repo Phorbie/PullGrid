@@ -5,14 +5,18 @@ pair = 0;
 PAIRS = [["base","front"],["base","rear"],["base","top"],["base","boards"],["front","top"],
          ["rear","top"],["front","boards"],["rear","boards"],["top","boards"],["rails","base"],
          ["rails","front"],["rails","rear"],["rails","boards"],["slides_in","base"],["slides_out","rails"],
-         ["slides_in","rails"]];
+         ["slides_in","rails"],["brackets","front"],["brackets","base"],["brackets","boards"],["brackets","rails"],
+         // tie rods must thread through every part's holes
+         ["rods","base"],["rods","front"],["rods","rear"],["rods","top"],["rods","brackets"]];
 module P_(n) {
-    if (n == "base") base_full_keyed(G);
+    if (n == "base") base_full(G);
     if (n == "front") plate_keyed(G, "front");
     if (n == "rear") plate_keyed(G, "rear");
-    if (n == "top") for (i = [0 : g(G, "panels") - 1]) top_rail_keyed(G, i);
+    if (n == "top") for (i = [0 : g(G, "panels") - 1]) top_rail_full(G, i);
+    if (n == "rods") rods_part(G);
+    if (n == "brackets" && g(G, "mount")) for (x = g(G, "br_x"), z = g(G, "br_z")) bracket_full(G, x, z);
     if (n == "boards") boards_part(G);
-    if (n == "rails") { rail_full(G, "L"); rail_full(G, "R"); }
+    if (n == "rails") { if (g(G, "angle")) angle_part(G); else { rail_full(G, "L"); rail_full(G, "R"); } }
     // hardware shrunk 0.05 so face contact doesn't count
     if (n == "slides_in") translate([0, 0.05, 0.05]) resize_slides("inner");
     if (n == "slides_out") translate([0, 0.05, 0.05]) resize_slides("outer");

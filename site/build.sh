@@ -24,6 +24,9 @@ cp "$NM/three/examples/jsm/controls/OrbitControls.js" "$OUT/vendor/three/"
 cp "$NM/three/examples/jsm/loaders/STLLoader.js" "$OUT/vendor/three/"
 cp "$NM/three/LICENSE" "$OUT/vendor/three/"
 
+# docs: Markdown -> pages
+node site/build-docs.mjs "$OUT"
+
 # list of scad files for the worker to load
 (cd "$OUT/scad" && find . -name '*.scad' | sed 's|^\./||' | sort) > "$OUT/scad/files.txt"
 

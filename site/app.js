@@ -9,11 +9,13 @@ const DEFAULTS = {
   unit: "in",
   opening_w: 11 * MM, opening_h: 24 * MM, interior_depth: 22 * MM,
   frame_type: "face_frame", hinge_side: "left",
+  door_mode: "mount", door_thickness: 19, door_overlay: 12.7, face_frame_thickness: null,
+  region: null, rail_type: "angle", clear_front: null,
   offset_left: null, offset_right: null, offset_bottom: null, offset_top: null,
   rear_w: null, rear_h: null, door_intrusion: 0,
   hinges: [], keepouts: [],
   panel_count: 1, panel_thickness: "6.8", pullouts: null, bed_size: "256",
-  slide_t: 12.7, slide_h: 45,
+  slide_t: 13, slide_h: 45,
   clear_side: 3, clear_top: 5, clear_rear: 10,
 };
 const DODGE = {
@@ -24,8 +26,9 @@ const DODGE = {
   back: "shortened the frame from the back",
 };
 // preview parts: [name, moves with the slide?]
-const PREVIEW = [["carriage", true], ["boards", true], ["slides_moving", true],
+const PREVIEW = [["carriage", true], ["boards", true], ["slides_moving", true], ["door", true],
                  ["rails", false], ["slides_fixed", false], ["cabinet", false], ["keepouts", false]];
+const DOCS = "docs/";
 const PETG = 1.27, FILL = 0.45;  // g/cm³, rough share of solid volume at typical walls/infill
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -35,7 +38,22 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const cap = (s) => s[0].toUpperCase() + s.slice(1);
 
 // ---------- state ----------
+// inch hardware in the US and Canada, metric in the rest of the English-speaking world
+function autoRegion() {
+  for (const l of navigator.languages || [navigator.language || "en-US"]) {
+    const r = (l.split("-")[1] || "").toUpperCase();
+    if (["US", "CA"].includes(r)) return "inch";
+    if (["GB", "UK", "IE", "AU", "NZ", "ZA"].includes(r)) return "metric";
+  }
+  return "inch";
+}
 let state = loadState();
+if (!state.region) {
+  state.region = autoRegion();
+  let saved = false;
+  try { saved = !!localStorage.getItem("pullgrid"); } catch {}
+  if (!saved && state.region === "metric") state.unit = "mm";  // metric markets measure in mm
+}
 const bad = new Set();
 let report = null;
 let lastDefines = null;
@@ -99,6 +117,14 @@ function fillForm() {
   for (const b of $$(".units button")) b.classList.toggle("on", b.dataset.unit === state.unit);
   bad.clear();
   buildRows();
+  applyShow();
+}
+// elements tagged data-show="key=value" only appear when the state matches
+function applyShow() {
+  for (const el of $$("[data-show]")) {
+    const [k, v] = el.dataset.show.split("=");
+    el.hidden = String(state[k]) !== v;
+  }
 }
 
 form.addEventListener("input", (e) => {
@@ -138,6 +164,7 @@ form.addEventListener("click", (e) => {
   const seg = b.parentElement;
   state[seg.dataset.key] = b.dataset.v;
   for (const x of $$("button", seg)) x.classList.toggle("on", x === b);
+  applyShow();
   changed();
 });
 
@@ -235,6 +262,9 @@ function defines(s) {
     keepouts: `[${s.keepouts.map((k) => `[${[k.x, k.y, k.z, k.w, k.d, k.h].map(r2).join(",")}]`).join(",")}]`,
     panel_count: s.panel_count, panel_thickness: s.panel_thickness,
     pullouts: s.pullouts == null ? -1 : s.pullouts, bed_size: s.bed_size,
+    door_mode: `"${s.door_mode}"`, door_thickness: L(s.door_thickness), door_overlay: L(s.door_overlay),
+    face_frame_thickness: L(s.face_frame_thickness), region: `"${s.region}"`, rail_type: `"${s.rail_type}"`,
+    clear_front: L(s.clear_front),
     slide_t: L(s.slide_t), slide_h: L(s.slide_h),
     clear_side: L(s.clear_side), clear_top: L(s.clear_top), clear_rear: L(s.clear_rear),
   };
@@ -267,6 +297,7 @@ function apply(d, out) {
   report = parseReport(out.carriage.log);
   lastDefines = d;
   meshVolume = 0;
+  (state.door_mode === "mount" ? moving : scene).add(groups.door);  // a kept door stays put
   for (const [name] of PREVIEW) {
     const v = setPart(name, report.fits ? out[name].stl : name === "cabinet" || name === "keepouts" ? out[name].stl : null);
     if (name === "carriage" || name === "rails") meshVolume += v;
@@ -278,7 +309,7 @@ function apply(d, out) {
 }
 
 function parseReport(log) {
-  const r = { keepouts: [], errors: [], warnings: [], scadErrors: [], parts: [], hw: [] };
+  const r = { keepouts: [], errors: [], warnings: [], scadErrors: [], parts: [], hw: [], cuts: [] };
   for (const line of log) {
     if (/^ERROR:/.test(line)) r.scadErrors.push(line);
     const m = line.match(/PULLGRID (.*?)"?$/);
@@ -297,6 +328,9 @@ function parseReport(log) {
     else if ((x = t.match(/^part=(\d+) id=(\S+) qty=(\d+) size=\[([^\]]+)\] label=(.*)$/)))
       r.parts.push({ index: +x[1], id: x[2], qty: +x[3], size: x[4].split(",").map(Number), label: x[5] });
     else if ((x = t.match(/^hw=(\d+) item=(.*)$/))) r.hw.push({ qty: +x[1], item: x[2] });
+    else if ((x = t.match(/^cut=(\d+) len=([\d.]+) item=(.*)$/))) r.cuts.push({ qty: +x[1], len: +x[2], item: x[3] });
+    else if ((x = t.match(/^door=(\w+) region=(\w+) rails=(\w+)/))) Object.assign(r, { door: x[1], region: x[2], rails: x[3] });
+    else if ((x = t.match(/^bracket_mm=([\d.]+)/))) r.bracket = +x[1];
     else if ((x = t.match(/^keepout=(\d+) dodged_by=(\w+) label=(.*)$/))) r.keepouts.push({ by: x[2], label: x[3] });
     else if ((x = t.match(/^hinges=(\d+)/))) r.hinges = +x[1];
     else if (t.startsWith("ERROR")) r.errors.push(t.slice(6));
@@ -313,6 +347,7 @@ function setStatus(kind, text) {
   s.textContent = text;
 }
 const inch = (s) => s.replace(/(\d+)in\b/g, "$1″");
+const spell = (s) => (report?.region === "metric" ? s.replace(/aluminum/g, "aluminium") : s);
 function showReport() {
   const dl = $("#facts"), ul = $("#tradeoffs"), build = $("#build");
   if (!report) return;
@@ -325,7 +360,9 @@ function showReport() {
     return;
   }
   const [w, d, h] = report.env, W = report.warnings;
-  if (W.includes("too_narrow")) setStatus("warn", "Fits, but the pull-out is narrow: room for slim items only");
+  if (W.includes("angle_too_short")) setStatus("warn", "Fits, but the bottom rail is tall enough that aluminum angle won't reach the slides. Switch to printed rails.");
+  else if (W.includes("door_too_thin")) setStatus("warn", "Fits, but that door is too thin for the bracket screws. Keep it hinged, or check the screw length.");
+  else if (W.includes("too_narrow")) setStatus("warn", "Fits, but the pull-out is narrow: room for slim items only");
   else if (W.includes("no_standard_slide_fits")) setStatus("warn", "Fits, but it's shallower than the shortest standard slide (10″)");
   else if (W.some((x) => x.startsWith("part_exceeds_bed"))) setStatus("warn", "Fits, but some parts are bigger than your print bed");
   else setStatus("good", "Fits");
@@ -334,9 +371,11 @@ function showReport() {
   dl.innerHTML =
     row("Usable space", `${fmt(w)} W × ${fmt(d)} D × ${fmt(h)} H`) +
     (c ? row(n > 1 ? `${n} pull-outs, each` : "Pull-out", `${fmt(c[0])} W × ${fmt(c[1])} D × ${fmt(c[2])} H`) : "") +
-    (report.slide ? row("Slides", `${Math.round(report.slide / MM)}″ full-extension`, `${report.slide} mm`) : "") +
+    (report.slide ? (report.region === "metric" ? row("Slides", `${report.slide} mm full-extension`)
+      : row("Slides", `${Math.round(report.slide / MM)}″ full-extension`, `${report.slide} mm`)) : "") +
     (report.cells ? row("openGrid", `${report.cells[2]} panel${report.cells[2] > 1 ? "s" : ""}${n > 1 ? " per pull-out" : ""}, ${report.cells[0]} × ${report.cells[1]} cells`, `${fmt(report.cells[0] * 28)} × ${fmt(report.cells[1] * 28)}`) : "") +
-    row("Hinges", state.hinges.length ? `${state.hinges.length} custom` : state.hinge_side === "none" ? "none" : `${report.hinges} auto`);
+    (report.door === "mount" ? row("Door", "mounted on the pull-out", report.bracket ? `brackets ${fmt(report.bracket)} deep` : "")
+      : row("Hinges", state.hinges.length ? `${state.hinges.length} custom` : state.hinge_side === "none" ? "none" : `${report.hinges} auto`));
   ul.innerHTML = report.keepouts.map((k) => `<li><strong>${esc(cap(k.label))}</strong>: ${DODGE[k.by] || k.by}</li>`).join("");
   showBuild();
 }
@@ -374,19 +413,28 @@ function showBuild() {
       `<p>${per * panels} ${b.type === "full" ? "Full" : "Lite"} boards: ${per} per panel × ${panels} panel${panels > 1 ? "s" : ""}. Sizes in cells, wide × tall (front-to-back × up):</p>` +
       grid + `<ul class="hw">${Object.entries(counts).map(([k, v]) => `<li><b>${v}×</b> ${k} cells</li>`).join("")}<li>openGrid connector pegs for the board seams</li></ul>`;
   }
-  // hardware
+  // hardware + cuts
   $("#hw").innerHTML = r.hw.map((h) => `<li><b>${h.qty}×</b> ${esc(inch(h.item))}</li>`).join("");
+  const cutLen = (mm) => (r.region === "metric" ? `${Math.round(mm)} mm` : `${formatLen(mm, "in")}″ (${Math.round(mm)} mm)`);
+  $("#cut").innerHTML = r.cuts.map((c) => `<li><b>${c.qty}×</b> ${esc(spell(c.item))} at ${cutLen(c.len)}</li>`).join("") ||
+    "<li>Nothing to cut.</li>";
   // install
-  const rl = r.rails;
+  const rl = r.rails, mount = r.door === "mount", angle = r.rails === "angle";
+  const place = rl ? `${fmt(rl.spacing)} apart (inside faces)${rl.xs.length === 1 ? `, the left one ${fmt(rl.xs[0])} from the cabinet's left wall` : `, left rails at ${rl.xs.map((x) => fmt(x)).join(", ")} from the left wall`}, front ends ${fmt(rl.front)} behind the opening` : "";
   $("#steps").innerHTML = [
-    "Glue the split parts with the bowtie keys: base segments from underneath, plate segments on the inside face, top-rail segments on top. Let them cure.",
+    "Glue the plate pieces together with the bowtie keys on the inside face. Let them cure.",
+    `Cut the tie rods${angle ? " and the aluminum angle" : ""} (see Cut). File the ends smooth.`,
     "Unclip each slide. Screw the inner members to the base cheeks, front ends flush with the front of the base.",
-    "Drop M3 nuts into the cheek slots and bolt the front and rear plates on (M3 × 16).",
-    "Slide the openGrid boards down into the grooves, then drop each top rail into its dovetails.",
-    rl ? `Screw the outer slide members to the floor rails. Set the rails ${fmt(rl.spacing)} apart (inside faces of the walls)${rl.xs.length === 1 ? `, the left one ${fmt(rl.xs[0])} from the cabinet's left wall` : `, left rails at ${rl.xs.map((x) => fmt(x)).join(", ")} from the left wall`}, front ends ${fmt(rl.front)} behind the opening.` : "",
-    "Clip the carriage onto the rails to check alignment, mark the rails, unclip it, and screw the rails to the floor.",
-    "Clip the carriage back in. Snap openGrid accessories onto both sides.",
-  ].filter(Boolean).map((s) => `<li>${s}</li>`).join("");
+    "Stand the front and rear plates against the base. Push the two bottom rods through, add washers and nuts.",
+    "Slide the openGrid boards down into the grooves. Set the top rails on, push their rods through, then snug every nut. Don't crush the plastic.",
+    mount ? "Screw the door brackets to the front plate from the inside, in the middle of their slots." : "",
+    angle ? `Screw the outer slide members to the upright leg of each angle, front ends flush. Set the angles ${place}.`
+          : `Screw the outer slide members to the floor rails. Set the rails ${place}.`,
+    `Clip the carriage on to check it runs straight. Mark the rails, unclip the carriage, ${angle ? "drill the inward leg and " : ""}screw the rails to the floor.`,
+    mount ? "Take the door off its hinges. Stick double-sided tape on the bracket faces, clip the carriage in, close it, line the door up and press it on." : "",
+    mount ? "Pull out gently, unscrew the brackets from the plate (they stay taped to the door), screw them to the door, then screw them back to the plate. The slots let you fine-tune height and side-to-side." : "",
+    "Snap openGrid accessories onto both sides.",
+  ].filter(Boolean).map((s) => `<li>${spell(s)}</li>`).join("");
 }
 
 // ---------- downloads ----------
@@ -458,11 +506,12 @@ function readme() {
   return [
     "PullGrid by Phorbie Designs — CC BY-SA 4.0",
     "https://phorbie.github.io/PullGrid/",
+    "Docs: https://phorbie.github.io/PullGrid/docs/",
     "",
     `Settings link: ${location.origin}${location.pathname}#${encodeURIComponent(JSON.stringify(state))}`,
     "",
     "PRINT (quantity is in each file name, e.g. -x2)",
-    "PETG or PETG-GF. 4 walls, 25% gyroid. Rails and base: 5 walls (they hold screws).",
+    "PETG or PETG-GF. 4 walls, 25% gyroid. Base and any printed rails: 5 walls (they hold screws).",
     "Plates print face-down, top rails cap-down. Everything is already oriented.",
     ...r.parts.map((p) => `- ${p.qty}x ${p.label}  (${p.size[0]} x ${p.size[1]} x ${p.size[2]} mm)`),
     "",
@@ -470,10 +519,13 @@ function readme() {
     $("#boards p")?.textContent || "",
     txt($("#boards")),
     "",
-    "BUY",
+    "BUY  (what to look for: https://phorbie.github.io/PullGrid/docs/hardware.html)",
     txt($("#hw")),
     "",
-    "INSTALL",
+    "CUT",
+    txt($("#cut")),
+    "",
+    "INSTALL  (with pictures: https://phorbie.github.io/PullGrid/docs/assembly.html)",
     $$("#steps li").map((li, i) => `${i + 1}. ${li.textContent}`).join("\n"),
     "",
   ].join("\n");
@@ -511,8 +563,9 @@ const mats = {
   slides_moving: std(0x9aa0a6, { metalness: 0.5, roughness: 0.4 }), slides_fixed: std(0x9aa0a6, { metalness: 0.5, roughness: 0.4 }),
   rails: std(0x4c5866), cabinet: std(0xc9a77a, { ...ghost, opacity: 0.2, roughness: 0.9, side: THREE.DoubleSide }),
   keepouts: std(0xc8324f, { ...ghost, opacity: 0.6 }),
+  door: std(0xc8a676, { ...ghost, opacity: 0.55, roughness: 0.8 }),
 };
-const edgeColor = { carriage: 0x163650, boards: 0x9a9488, slides_moving: 0x5f6368, slides_fixed: 0x5f6368, rails: 0x252c33, cabinet: 0x8a6d48, keepouts: 0x8e1c33 };
+const edgeColor = { door: 0x8a6d48, carriage: 0x163650, boards: 0x9a9488, slides_moving: 0x5f6368, slides_fixed: 0x5f6368, rails: 0x252c33, cabinet: 0x8a6d48, keepouts: 0x8e1c33 };
 
 function stlVolume(geo) {  // cm³·1000 = mm³; signed tetrahedra
   const p = geo.attributes.position.array;
@@ -533,6 +586,7 @@ function setPart(name, stl) {
     new THREE.LineBasicMaterial({ color: edgeColor[name], transparent: name === "cabinet", opacity: name === "cabinet" ? 0.55 : 1 }));
   if (name === "keepouts") mesh.renderOrder = line.renderOrder = 2;
   if (name === "cabinet") mesh.renderOrder = line.renderOrder = 3;
+  if (name === "door") mesh.renderOrder = line.renderOrder = 4;
   g.add(mesh, line);
   return stlVolume(geo);
 }

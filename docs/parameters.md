@@ -22,13 +22,28 @@ Relative to the cabinet **interior**: `x` across from the left wall, `y` depth f
 
 | Param | Default | Meaning |
 |---|---|---|
-| `door_mode` | `mount` | `mount`: the door comes off its hinges and screws to printed brackets on the front plate. `keep`: the door stays hinged; hinges become keep-outs. `none`: no door; nothing to dodge, solid front plate with finger slots |
+| `door_mode` | `mount` | `mount`: the door comes off its hinges and screws to printed brackets on the front plate. `keep`: the door stays hinged; hinges become keep-outs. `none`: no door; nothing to dodge. With `keep` or `none` the front plate is solid and carries the [front handles](#front-handles) |
 | `door_thickness` | 19 | Door mount needs at least 15 |
 | `door_overlay` | 12.7 | How far the door overlaps the opening per side. Preview only |
 | `face_frame_thickness` | -1 | Face frame depth, front to back. Auto: 19 face frame, 0 frameless. Sets the bracket depth |
 | `door_opens` | `past_90` | Keep mode: `only_90` if something stops the door at 90°. Then the pull-out next to the hinges is one-sided (see `sides`) |
 
 With a mounted door and more than one tier, every tier is fixed to the door: they share the shortest slide length and the deepest front plane, and get one row of brackets each instead of two.
+
+## Front handles
+
+Only when the front plate is the face (`door_mode` = `keep` or `none`). A mounted door keeps its own pull.
+
+| Param | Default | Meaning |
+|---|---|---|
+| `handle` | `slot` | `slot`: finger slots cut through the plate. `bar`, `arch`, `knob`: printed, screwed on from inside the plate (one screw per post). `pull`: a store-bought cabinet pull, bolted on with short machine screws. `none` |
+| `handle_dir` | `horizontal` | `vertical` turns slots, bars, arches and pulls upright |
+| `handle_pos` | `top` | `top`, `middle` or `bottom` of the front |
+| `handle_across` | `center` | With one handle: `left`, `center` or `right` |
+| `handle_count` | -1 | Per pull-out. Auto: one in the middle, or one each side when a board runs down the middle (its groove is in the way). 2 = side by side; vertical ones go near each edge |
+| `handle_size` | -1 | Slot length, screw spacing (bar, arch, pull) or knob diameter. Auto: 90 slot, 96 bar/arch/pull, 32 knob. Pulls come in 96 mm (3¾″) and 128 mm (5″) everywhere |
+
+Anything that goes through the plate stays clear of the board grooves, the plate seams and their keys. A horizontal slot across a groove gets a bridge over it. If a handle has to move to fit, the report says so. Printed handles stick out 34 mm (knobs 32, pulls about 35); with a kept door the pull-out sits back far enough for the door to close over them.
 
 ## Advanced: offsets and odd shapes
 
@@ -93,7 +108,7 @@ The angle must reach above the slide's screw line: leg ≥ slide bottom + 28.5 m
 | `clear_side` | 3 | Each side, inside the opening |
 | `clear_top` | 5 | Above the frame |
 | `clear_rear` | 10 | Behind the rear plate. Keep ≥ 10 for the tie-rod nuts |
-| `clear_front` | -1 | In front of the front plate. Auto: `max(0, 9 − face frame depth)`, which leaves room for the tie-rod nuts and door brackets |
+| `clear_front` | -1 | In front of the front plate. Auto: `max(0, 9 − face frame depth)`, which leaves room for the tie-rod nuts and door brackets; with a kept door and handles that stick out, enough for the door to close over them |
 
 ## Render
 

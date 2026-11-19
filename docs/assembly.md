@@ -22,6 +22,8 @@ What to do depends on what you chose under **Your door**:
 
 The front and rear plates come in pieces. Lay the pieces of each plate face-down in order, tap a bowtie key into each pocket across the seams with a little CA glue or epoxy, and let them cure flat. These are the only glued joints.
 
+**Handles** (door kept, or no door): once the front plate has cured, screw printed handles or knobs on from the inside, one pan-head screw into each post, snug but not tight. Store-bought pulls bolt on the same way with the short machine screws from the shopping list.
+
 ## 2. Cut the metal
 
 Use the **Cut** list from the generator.

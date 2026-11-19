@@ -25,9 +25,13 @@ jobs:
         run: tests/interference.sh -D 'opening_w=480' -D 'door_mode="keep"' -D 'door_opens="only_90"' -D 'test_pullout=2'
       - name: interference, mounted pair facing outward
         run: tests/interference.sh -D 'opening_w=480' -D 'test_pullout=2'
+      - name: interference, hung door closing over printed bar handles
+        run: tests/interference.sh -D 'door_mode="keep"' -D 'handle="bar"'
       - run: tests/print_parts.sh
       - name: print parts, stacked tiers
         run: tests/print_parts.sh -D 'opening_h=900' -D 'shelves=[400]' -D 'rail_type="printed"'
+      - name: print parts, no door, arch handles
+        run: tests/print_parts.sh -D 'door_mode="none"' -D 'handle="arch"'
       - uses: actions/setup-node@v4
         with:
           node-version: 22

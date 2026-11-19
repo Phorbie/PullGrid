@@ -44,6 +44,7 @@ a.help { font-size: 12px; font-weight: 400; color: var(--muted); }
 .units button, .seg button { border: 0; background: none; padding: 6px 12px; font: inherit; color: var(--muted); cursor: pointer; }
 .units button + button, .seg button + button { border-left: 1px solid var(--line); }
 .units button.on, .seg button.on { background: var(--ink); color: var(--paper); }
+.seg.tight button { padding: 6px 9px; }
 
 .layout { display: grid; grid-template-columns: 360px 1fr; gap: 16px; padding: 16px 20px; align-items: start; }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 4px 16px 16px; }

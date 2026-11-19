@@ -80,13 +80,13 @@
         <h2>Your door <a class="help" href="docs/door-mount.html">Why mount it?</a></h2>
         <div class="field">
           <div class="seg" data-key="door_mode">
-            <button type="button" data-v="mount">Mount it on the pull-out</button>
+            <button type="button" data-v="mount" title="Mount the door on the pull-out">Mount it</button>
             <button type="button" data-v="keep">Keep it hinged</button>
             <button type="button" data-v="none">No door</button>
           </div>
           <small data-show="door_mode=mount">The door comes off its hinges and becomes the pull-out's front, so nothing blocks the sides. With shelves, every tier rides on the door and they pull out together.</small>
           <small data-show="door_mode=keep">Open the door first. With fixed shelves, each tier pulls out on its own.</small>
-          <small data-show="door_mode=none">No door, or it's already off and staying off. The front plate is the face, with finger slots.</small>
+          <small data-show="door_mode=none">No door, or it's already off and staying off. The front plate is the face: pick its handles below.</small>
         </div>
         <div class="field" data-show="door_mode=keep">
           <span>How far does the door open?</span>
@@ -100,6 +100,66 @@
           <span>Door thickness</span>
           <input data-key="door_thickness" data-kind="len" inputmode="decimal">
         </label>
+        <div data-show="door_mode=keep|none">
+          <div class="field">
+            <span>Front handles</span>
+            <div class="seg tight" data-key="handle">
+              <button type="button" data-v="slot">Slot</button>
+              <button type="button" data-v="bar">Bar</button>
+              <button type="button" data-v="arch">Arch</button>
+              <button type="button" data-v="knob">Knob</button>
+              <button type="button" data-v="pull" title="A store-bought cabinet pull">Pull</button>
+              <button type="button" data-v="none">None</button>
+            </div>
+            <small data-show="handle=slot">Finger slots cut through the front plate.</small>
+            <small data-show="handle=bar|arch|knob">Printed, and screwed on from inside the front plate.</small>
+            <small data-show="handle=pull">Any store-bought cabinet pull. Its own screws are too long for the plate, so the shopping list adds short ones.</small>
+            <small data-show="door_mode=keep">Handles stick out, so the pull-out sits back far enough for the door to close over them.</small>
+          </div>
+          <div class="handle-opts" data-show="handle=slot|bar|arch|knob|pull">
+            <div class="field" data-show="handle=slot|bar|arch|pull">
+              <span>Direction</span>
+              <div class="seg" data-key="handle_dir">
+                <button type="button" data-v="horizontal">Horizontal</button>
+                <button type="button" data-v="vertical">Vertical</button>
+              </div>
+            </div>
+            <div class="field">
+              <span>Height</span>
+              <div class="seg" data-key="handle_pos">
+                <button type="button" data-v="top">Top</button>
+                <button type="button" data-v="middle">Middle</button>
+                <button type="button" data-v="bottom">Bottom</button>
+              </div>
+            </div>
+            <div class="field">
+              <span>Per pull-out</span>
+              <div class="seg" data-key="handle_count">
+                <button type="button" data-v="auto">Auto</button>
+                <button type="button" data-v="1">1</button>
+                <button type="button" data-v="2">2</button>
+              </div>
+              <small data-show="handle_count=auto">One in the middle, or one each side when a board runs down the middle.</small>
+              <small data-show="handle_count=2">Side by side (vertical ones go near each edge).</small>
+            </div>
+            <div class="field" data-show="handle_count=auto|1">
+              <span>Across</span>
+              <div class="seg" data-key="handle_across">
+                <button type="button" data-v="left">Left</button>
+                <button type="button" data-v="center">Middle</button>
+                <button type="button" data-v="right">Right</button>
+              </div>
+            </div>
+            <label class="field">
+              <span data-show="handle=slot">Slot length</span>
+              <span data-show="handle=bar|arch">Screw spacing</span>
+              <span data-show="handle=pull">Pull hole spacing</span>
+              <span data-show="handle=knob">Knob diameter</span>
+              <input data-key="handle_size" data-kind="len" data-auto inputmode="decimal">
+              <small data-show="handle=pull">Center to center. 96 mm (3¾″) and 128 mm (5″) pulls are stocked everywhere.</small>
+            </label>
+          </div>
+        </div>
         <div class="field" data-show="door_mode=keep">
           <span>Hinge side</span>
           <div class="seg" data-key="hinge_side">
@@ -234,9 +294,9 @@
           <div class="vrow"><span>Board look</span>
             <div class="seg" data-view="boards"><button type="button" data-v="plain">Plain</button><button type="button" data-v="opengrid">openGrid</button><button type="button" data-v="hex" title="Honeycomb Storage Wall style">Hex</button><button type="button" data-v="skadis">SKÅDIS</button><button type="button" data-v="multiboard">Multiboard</button></div>
             <small>A look only: the frame's grooves are sized for openGrid boards.</small></div>
-          <div class="vrow"><span>Handles</span>
+          <div class="vrow"><span>Drag arrows</span>
             <div class="seg" data-view="handles"><button type="button" data-v="on">Show</button><button type="button" data-v="off">Hide</button></div></div>
-          <small>Drag an orange handle to pull out one pull-out, or use the slider for all of them. Click the legend below to show or hide each kind of part.</small>
+          <small>Drag an orange arrow to slide one pull-out in or out, or use the slider for all of them. Click the legend below to show or hide each kind of part.</small>
         </div>
         <div class="legend" aria-label="Show or hide">
           <button type="button" data-cat="printed" title="Show or hide printed parts"><i class="sw frame"></i>Printed</button>

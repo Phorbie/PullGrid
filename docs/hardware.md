@@ -13,7 +13,9 @@ The generator's **Buy** list gives you exact quantities and lengths for your cab
 | **Threaded rod** | ¼″-20 | M6 | The tie rods that clamp the pull-out together |
 | **Nuts and washers** | ¼″-20 hex nuts, ¼″ washers | M6 nuts, M6 washers | Acorn (dome) nuts look tidier on the front |
 | **Wood screws** (floor) | #8 × ¾″ | 4 × 20 mm | Rails to the cabinet floor |
-| **Pan-head screws** (slides) | #8 × ½″ sheet-metal | 4 × 13 mm self-tapping | Slides to rails and carriage; brackets to plate. Slides often come with suitable screws |
+| **Pan-head screws** (slides) | #8 × ½″ sheet-metal | 4 × 13 mm self-tapping | Slides to rails and carriage; brackets to plate; printed handles to plate. Slides often come with suitable screws |
+| **Cabinet pulls** | 3¾″ (96 mm) or 5″ (128 mm) hole centers | 96 or 128 mm hole centres | Only if you picked store-bought pulls |
+| **Machine screws** (pulls) | 8-32 × ½″ | M4 × 12 mm | Pulls only. The screws in the pull's bag are for a ¾″ door and too long for the 6 mm plate |
 | **Wood screws** (door) | #8 × ⅝″ | 4 × 16 mm | Door mount only: brackets to door |
 | **Glue** | CA (super glue) or epoxy | Same | Bowtie keys at the plate seams |
 | **Double-sided tape** | Any foam mounting tape | Same | Door mount only: positions the door before screwing |

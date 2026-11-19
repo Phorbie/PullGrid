@@ -29,7 +29,7 @@ Other slicers: use the STLs. Settings are in the table below.
 | Supports | None needed |
 | Brim | Optional on the long base and rail pieces if your bed is fussy |
 
-Everything is oriented for you: plates print face-down, top rails print cap-down, brackets print door-side-down. Don't rotate them.
+Everything is oriented for you: plates print face-down, top rails print cap-down, brackets print door-side-down, bar and arch handles print on their side, knobs print face-down. Don't rotate them.
 
 ## What you'll print
 
@@ -38,10 +38,11 @@ Everything is oriented for you: plates print face-down, top rails print cap-down
 | Part | What it does |
 |---|---|
 | **Base** (usually 3 pieces) | The tray the slides screw to. Grooves hold the bottom of the boards; beads along each side carry the tie rods |
-| **Front plate** (3 pieces) | Carries the door brackets. An open frame in door-mount mode, a solid face with finger slots if you keep the door hinged |
+| **Front plate** (3 pieces) | Carries the door brackets. An open frame in door-mount mode; a solid face with your choice of handles if you keep the door hinged or have none |
 | **Rear plate** (3 pieces) | Open frame with grooves for the back of the boards |
 | **Top rail** (3 pieces per panel) | Caps the boards and ties the plates together at the top |
 | **Door bracket** (4 per door) | Door-mount mode only |
+| **Handles or knobs** | Only if you picked printed ones. Screw on from inside the front plate |
 | **Bowtie keys** | Glue into the plate seams |
 | **Floor rails** | Only if you chose printed rails |
 

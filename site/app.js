@@ -17,6 +17,7 @@ const DEFAULTS = {
   rear_w: null, rear_h: null, door_intrusion: 0,
   hinges: [], keepouts: [], shelves: [], shelf_thickness: 19, shelf_setback: 0,
   door_opens: "past_90", sides: {}, printer: null,
+  handle: "slot", handle_dir: "horizontal", handle_pos: "top", handle_across: "center", handle_count: "auto", handle_size: null,
   panel_count: 1, panel_thickness: "6.8", pullouts: null, bed_size: "256",
   slide_t: 13, slide_h: 45,
   clear_side: 3, clear_top: 5, clear_rear: 10,
@@ -34,6 +35,7 @@ const PREVIEW = [["carriage", true], ["boards", true], ["slides_moving", true], 
 // printed pieces in place, seams and keys showing: rendered only when the view asks for them
 const PIECES = [["pieces", true], ["rail_pieces", false]];
 const DOCS = "docs/";
+const HANDLE_NAME = { slot: "finger slot", bar: "printed bar handle", arch: "printed arch handle", knob: "printed knob", pull: "store-bought pull" };
 const PETG = 1.27, FILL = 0.45;  // g/cm³, rough share of solid volume at typical walls/infill
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -128,7 +130,7 @@ function fillForm() {
 function applyShow() {
   for (const el of $$("[data-show]")) {
     const [k, v] = el.dataset.show.split("=");
-    el.hidden = String(state[k]) !== v;
+    el.hidden = !v.split("|").includes(String(state[k]));
   }
 }
 
@@ -284,6 +286,8 @@ function defines(s) {
     door_mode: `"${s.door_mode}"`, door_thickness: L(s.door_thickness), door_overlay: L(s.door_overlay),
     face_frame_thickness: L(s.face_frame_thickness), region: `"${s.region}"`, rail_type: `"${s.rail_type}"`,
     clear_front: L(s.clear_front),
+    handle: `"${s.handle}"`, handle_dir: `"${s.handle_dir}"`, handle_pos: `"${s.handle_pos}"`, handle_across: `"${s.handle_across}"`,
+    handle_count: s.handle_count === "auto" ? -1 : +s.handle_count, handle_size: L(s.handle_size),
     slide_t: L(s.slide_t), slide_h: L(s.slide_h),
     clear_side: L(s.clear_side), clear_top: L(s.clear_top), clear_rear: L(s.clear_rear),
   };
@@ -370,6 +374,8 @@ function parseReport(log) {
       Object.assign(r, { door: x[1], region: x[2], railType: x[3], reachSetting: x[4] || "auto" });
     else if ((x = t.match(/^keepout=(\d+) dodged_by=(\w+) label=(.*)$/))) r.keepouts.push({ by: x[2], label: x[3] });
     else if ((x = t.match(/^hinges=(\d+)/))) r.hinges = +x[1];
+    else if ((x = t.match(/^handle=(\w+) dir=(\w+) total=(\d+) size=([\d.]+) depth=([\d.]+)/)))
+      r.handle = { shape: x[1], dir: x[2], total: +x[3], size: +x[4], depth: +x[5] };
     else if (t.startsWith("ERROR")) r.errors.push(t.slice(6));
     else if (t.startsWith("WARNING")) r.warnings.push(t.slice(8));
   }
@@ -407,6 +413,8 @@ function showReport() {
   else if (W.includes("door_too_thin")) setStatus("warn", "Fits, but that door is too thin for the bracket screws. Keep it hinged, or check the screw length.");
   else if (W.includes("too_narrow")) setStatus("warn", "Fits, but the pull-out is narrow: room for slim items only");
   else if (W.includes("no_standard_slide_fits")) setStatus("warn", "Fits, but it's shallower than the shortest standard slide (10″)");
+  else if (W.includes("handle_hits_door")) setStatus("warn", "Fits, but the handles won't clear the closed door. Set Front clearance back to auto.");
+  else if (W.includes("handle_blocked")) setStatus("warn", "Fits, but there's no room for every handle. Try a smaller size, another height, or fewer.");
   else if (W.some((x) => x.startsWith("part_exceeds_bed"))) setStatus("warn", "Fits, but some parts are bigger than your print bed");
   else setStatus("good", "Fits");
   const row = (k, v, a = "") => `<dt>${k}</dt><dd>${v}${a ? `<span class="alt">${a}</span>` : ""}</dd>`;
@@ -435,11 +443,17 @@ function showReport() {
   html += report.door === "mount"
     ? row("Door", report.ok.length > 1 ? `mounted on all ${report.ok.length} tiers` : "mounted on the pull-out",
           report.ok[0]?.bracket ? `brackets ${fmt(report.ok[0].bracket)} deep` : "")
-    : report.door === "none" ? row("Door", "none", "front plate with finger slots")
+    : report.door === "none" ? row("Door", "none", "the front plate is the face")
     : row("Hinges", state.hinges.length ? `${state.hinges.length} custom` : state.hinge_side === "none" ? "none" : `${report.hinges} auto`);
+  const hd = report.handle;
+  if (report.door !== "mount")
+    html += row("Handles", !hd || !hd.total ? "none" : `${hd.total} ${HANDLE_NAME[hd.shape]}${hd.total > 1 ? "s" : ""}`,
+      !hd || !hd.total ? "" : [hd.shape === "knob" ? `${fmt(hd.size)} across` : hd.shape === "slot" ? `${fmt(hd.size)} long` : `${fmt(hd.size)} screw spacing`,
+                             hd.depth ? `sticks out ${fmt(hd.depth)}` : ""].filter(Boolean).join(" · "));
   dl.innerHTML = html;
   showSides();
-  ul.innerHTML = report.keepouts.map((k) => `<li><strong>${esc(cap(k.label))}</strong>: ${DODGE[k.by] || k.by}</li>`).join("");
+  ul.innerHTML = report.keepouts.map((k) => `<li><strong>${esc(cap(k.label))}</strong>: ${DODGE[k.by] || k.by}</li>`).join("") +
+    (W.includes("handle_moved") ? "<li><strong>Handles</strong>: moved a little to clear a board groove or a plate seam</li>" : "");
   showBuild();
 }
 
@@ -538,6 +552,10 @@ function showBuild() {
       : r.door === "none" ? "If the cabinet still has hinge plates, catches or bumpers from an old door, unscrew them: the pull-out uses that space."
       : "Leave the door on. Open it as far as it goes while you work.",
     "Glue the plate pieces together with the bowtie keys on the inside face. Let them cure.",
+    !mount && ["bar", "arch", "knob"].includes(r.handle?.shape) && r.handle.total
+      ? `Screw the ${r.handle.shape === "knob" ? "knobs" : "handles"} to the front plate from the inside, one screw into each post. Snug, not tight.` : "",
+    !mount && r.handle?.shape === "pull" && r.handle.total
+      ? "Bolt the pulls to the front plate from the inside with the short machine screws (not the ones in the pull's bag)." : "",
     `Cut the tie rods${angle ? " and the aluminum angle" : ""} (see Cut). File the ends smooth.`,
     "Unclip each slide. Screw the inner members to the base cheeks, front ends flush with the front of the base.",
     "Stand the front and rear plates against the base. Push the two bottom rods through, add washers and nuts.",
@@ -915,7 +933,7 @@ function applyView() {
       }
     }
   }
-  handles.visible = view.handles !== "off";
+  handles.visible = tracks.visible = view.handles !== "off";
   for (const b of $$(".legend button[data-cat]")) {
     const on = view.show[b.dataset.cat] !== false;
     b.classList.toggle("off", !on);
@@ -979,39 +997,62 @@ function applyExtension() {
 }
 ext.oninput = () => { unitExt = {}; applyExtension(); };
 
-const handles = new THREE.Group();
-scene.add(handles);
-const handleMat = std(ACCENT, { roughness: 0.35 }), handleHot = std(0xff8f52, { roughness: 0.35, emissive: 0x5a2200 });
-const HANDLE = { bar: new THREE.CapsuleGeometry(7, 90, 4, 16), post: new THREE.CylinderGeometry(4, 4, 24, 12) };
+// Drag arrows are viewer controls, not parts: drawn in their own pass on top of
+// everything, a constant size on screen, floating over each pull-out's top
+// front edge. While one is hot, a dashed line shows its travel.
+const overlayScene = new THREE.Scene();
+overlayScene.add(new THREE.HemisphereLight(0xffffff, 0x9a8a70, 2.0));
+const osun = new THREE.DirectionalLight(0xffffff, 1.4);
+osun.position.set(-700, -1200, 1500);
+overlayScene.add(osun);
+const handles = new THREE.Group(), tracks = new THREE.Group();
+overlayScene.add(handles, tracks);
+const handleMat = new THREE.MeshLambertMaterial({ color: ACCENT, emissive: 0x3a1200 });
+const handleHot = new THREE.MeshLambertMaterial({ color: 0xff9a5e, emissive: 0x6a2800 });
+const trackMat = new THREE.LineDashedMaterial({ color: ACCENT, dashSize: 12, gapSize: 8 });
+const GIZMO = {   // a ball on a shaft: big arrowhead out (pull), small one back (push); unit size, scaled per frame
+  ball: new THREE.SphereGeometry(0.75, 24, 16),
+  shaft: new THREE.CylinderGeometry(0.2, 0.2, 3.2, 12).translate(0, -0.1, 0),
+  out: new THREE.ConeGeometry(0.62, 1.2, 24).rotateZ(Math.PI).translate(0, -2.2, 0),
+  back: new THREE.ConeGeometry(0.42, 0.8, 24).translate(0, 1.9, 0),
+};
 function closedBox(objs) {
   const b = new THREE.Box3();
   for (const o of objs) if (o.isMesh) { o.geometry.computeBoundingBox(); b.union(o.geometry.boundingBox); }
   return b;
 }
-// a pull handle (bar on two posts) in front of a closed-position box
-function addHandle(b, unit, zf) {
+function addHandle(b, unit) {
   if (b.isEmpty()) return;
-  const h = new THREE.Group(), y0 = b.min.y - 26;
-  const bar = new THREE.Mesh(HANDLE.bar, handleMat);
-  bar.rotation.x = Math.PI / 2;
-  h.add(bar);
-  for (const dz of [-38, 38]) {
-    const post = new THREE.Mesh(HANDLE.post, handleMat);
-    post.position.set(0, 13, dz);
-    h.add(post);
+  const h = new THREE.Group(), y0 = b.min.y, x = (b.min.x + b.max.x) / 2, z = b.max.z + 45;
+  for (const geo of Object.values(GIZMO)) {
+    h.add(new THREE.Mesh(geo, handleMat));
   }
-  const z = Math.min(b.max.z - 60, Math.max(b.min.z + 60, b.min.z + zf * (b.max.z - b.min.z)));
-  h.position.set((b.min.x + b.max.x) / 2, y0, z);
+  h.position.set(x, y0, z);
   h.userData = { unit, y0 };
   handles.add(h);
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x, y0, z), new THREE.Vector3(x, y0 - travelOf(unit), z)]), trackMat);
+  line.computeLineDistances();
+  line.visible = false;
+  line.userData = { unit };
+  tracks.add(line);
 }
 function buildHandles() {
   handles.clear();
+  for (const t of tracks.children) t.geometry.dispose();
+  tracks.clear();
+  hot = null;
   if (!report?.fits) return;
-  if (ganged()) { addHandle(closedBox(groups.door.children.length ? groups.door.children : groups.carriage.children), null, 0.8); return; }
+  if (ganged()) { addHandle(closedBox(groups.door.children.length ? groups.door.children : groups.carriage.children), null); return; }
   for (const u of report.units) {
     const k = `${u.t}.${u.p}`;
-    addHandle(closedBox(groups.carriage.children.filter((o) => o.userData.unit === k)), k, 0.62);
+    addHandle(closedBox(groups.carriage.children.filter((o) => o.userData.unit === k)), k);
+  }
+}
+const _gp = new THREE.Vector3();
+function sizeHandles() {   // ~same size on screen at any zoom
+  for (const h of handles.children) {
+    h.getWorldPosition(_gp);
+    h.scale.setScalar(camera.position.distanceTo(_gp) * 0.0125 * (h === hot ? 1.18 : 1));
   }
 }
 
@@ -1035,6 +1076,7 @@ function setHot(h) {
   if (h === hot) return;
   for (const o of [hot, h]) if (o) for (const m of o.children) m.material = o === h ? handleHot : handleMat;
   hot = h;
+  for (const t of tracks.children) t.visible = !!h && t.userData.unit === h.userData.unit;
   if (!drag) renderer.domElement.style.cursor = h ? "grab" : "";
 }
 // grab before OrbitControls sees the press (capture on the parent), then drag along the slide
@@ -1067,6 +1109,7 @@ renderer.domElement.addEventListener("pointermove", (e) => {
 const endDrag = (e) => {
   if (!drag || e.pointerId !== drag.id) return;
   drag = null;
+  if (e.pointerType !== "mouse") setHot(null);
   renderer.domElement.style.cursor = hot ? "grab" : "";
 };
 renderer.domElement.addEventListener("pointerup", endDrag);
@@ -1096,7 +1139,15 @@ new ResizeObserver(() => {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }).observe(viewer);
-renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); });
+renderer.autoClear = false;
+renderer.setAnimationLoop(() => {
+  controls.update();
+  sizeHandles();
+  renderer.clear();
+  renderer.render(scene, camera);
+  renderer.clearDepth();   // drag arrows always on top
+  renderer.render(overlayScene, camera);
+});
 
 // ---------- go ----------
 fillForm();

@@ -82,6 +82,15 @@ run reach_mount     "reach=both"          -D 'door_opens="only_90"'
 run reach_one_panel "pullout=1 reach=left panels=1" -D 'reach_from="left"' -D 'panel_count=2'
 # viewer: each pull-out's box and where its cells start
 run unit_box        "pullout=2 reach=right panels=1 box=.251, 487, 0, 594.5. grid=.6.6, 21.3." -D 'opening_w=480'
+# front handles (front plate as the face)
+run handle_slots     "handle=slot dir=horizontal total=2"   -D 'door_mode="none"'
+run handle_bar_keep  "envelope_mm=.265, 533"                -D 'door_mode="keep"' -D 'handle="bar"'
+run handle_knob_one  "handle=knob dir=none total=1"         -D 'door_mode="none"' -D 'handle="knob"' -D 'handle_count=1' -D 'handle_across="right"'
+run handle_pull_bom  "cabinet pulls, 3-3/4in (96 mm)"       -D 'door_mode="none"' -D 'handle="pull"'
+run handle_pull_mm   "M4 x 12 mm machine screws"            -D 'door_mode="none"' -D 'handle="pull"' -D 'region="metric"'
+run handle_moved     "WARNING handle_moved"                 -D 'door_mode="none"' -D 'handle="pull"' -D 'handle_dir="vertical"' -D 'handle_count=1'
+run handle_door_hit  "WARNING handle_hits_door"             -D 'door_mode="keep"' -D 'handle="bar"' -D 'clear_front=0'
+run handle_screws    "item=#8 x 1/2in pan-head sheet-metal screws (slides; handles)" -D 'door_mode="none"' -D 'handle="bar"' 
 # no door: nothing to dodge, no brackets, both sides
 run door_none       "door=none region"    -D 'door_mode="none"'
 run door_none_hinge "hinges=0"            -D 'door_mode="none"' -D 'hinge_side="left"'

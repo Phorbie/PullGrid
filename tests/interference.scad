@@ -9,9 +9,13 @@ PAIRS = [["base","front"],["base","rear"],["base","top"],["base","boards"],["fro
          ["slides_in","rails"],["brackets","front"],["brackets","base"],["brackets","boards"],["brackets","rails"],
          // tie rods must thread through every part's holes
          ["rods","base"],["rods","front"],["rods","rear"],["rods","top"],["rods","brackets"],
+         // front handles sit on the plate's face, clear of the tie-rod nuts
+         ["handles","front"],["handles","rods"],
          // whole cabinet, every tier: nothing may run through a keep-out or a shelf,
          // and a pulled-out tier must clear a door kept open at 90 degrees
-         ["w_rails","obstacles"],["w_carriage","obstacles"],["w_boards","obstacles"],["w_carriage_out","door90"]];
+         ["w_rails","obstacles"],["w_carriage","obstacles"],["w_boards","obstacles"],["w_carriage_out","door90"],
+         // a kept door closes over the handles
+         ["w_carriage","door_shut"]];
 echo(str("PAIRS ", len(PAIRS)));
 module P_(n) {
     if (n == "base") base_full(G);
@@ -27,6 +31,9 @@ module P_(n) {
     if (n == "slides_out") translate([0, 0.05, 0.05]) resize_slides("outer");
     if (n == "obstacles") obstacles();
     if (n == "door90" && !MOUNT) door_part();
+    if (n == "handles") { handles_at(G); pulls_part(G); }
+    if (n == "door_shut" && HUNG) translate([o_l - door_overlay, DOOR_Y - door_thickness, o_b - door_overlay])
+        cube([opening_w + 2 * door_overlay, door_thickness, opening_h + 2 * door_overlay]);
     if (n[0] == "w" && n[1] == "_") W_(n);
 }
 // every tier in cabinet coordinates

@@ -61,6 +61,20 @@ face_frame_thickness = -1;
 // Kept doors: can the door swing past 90 degrees? If not, it blocks the hinge side of a pulled-out tier
 door_opens = "past_90"; // [past_90, only_90]
 
+/* [Front handle] */
+// When the front plate is the face (door kept, or no door). A mounted door keeps its own pull.
+// slot = finger slot through the plate; bar, arch, knob = printed, screwed on from inside;
+// pull = a store-bought cabinet pull
+handle = "slot"; // [slot, bar, arch, knob, pull, none]
+handle_dir = "horizontal"; // [horizontal, vertical]
+handle_pos = "top"; // [top, middle, bottom]
+// With one handle: across the front
+handle_across = "center"; // [center, left, right]
+// Per pull-out, side by side (-1 = auto: one, or one each side of a board down the middle)
+handle_count = -1; // [-1, 1, 2]
+// Slot length, hole spacing (bar, arch, pull: 96 and 128 are stocked everywhere) or knob diameter (-1 = auto)
+handle_size = -1;
+
 /* [Frame] */
 // openGrid panels per pull-out, running front to back
 panel_count = 1;
@@ -153,8 +167,10 @@ keepout_labels = concat(
 
 // ---------- Solve ----------
 FFT = face_frame_thickness >= 0 ? face_frame_thickness : (FF ? 19 : 0);
-// front gap: tie-rod nuts stick out 7.2 mm and must clear the closed door
-CF = clear_front >= 0 ? clear_front : max(0, 9 - FFT);
+// front gap: tie-rod nuts stick out 7.2 mm, and handles their own depth, and both
+// must clear a closed door
+HD = HUNG ? handle_depth(handle) : 0;
+CF = clear_front >= 0 ? clear_front : max(0, 9 - FFT, HD + 2 - FFT);
 AT = angle_thickness > 0 ? angle_thickness : (region == "metric" ? 3.0 : 3.2);
 M = region == "metric";
 // Which sides of each pull-out you can reach. Auto: a kept door stopped at 90
@@ -189,7 +205,9 @@ function opts(smax, leg, rows, reach) =
     [["panels", max(1, panel_count)], ["board_t", panel_thickness], ["slide_t", slide_t], ["slide_h", slide_h],
      ["bed", bed_size], ["pullouts", pullouts], ["region", region], ["rail_type", rail_type],
      ["angle_t", AT], ["door_mode", door_mode], ["fft", FFT], ["reach", reach],
-     ["slide_max", smax], ["leg_force", leg], ["br_rows", rows]];
+     ["slide_max", smax], ["leg_force", leg], ["br_rows", rows],
+     ["handle", handle], ["handle_dir", handle_dir], ["handle_pos", handle_pos], ["handle_across", handle_across],
+     ["handle_count", handle_count], ["handle_size", handle_size]];
 function geom(e, smax = BIG, leg = -1, rows = 2, reach = TIER_REACH) =
     env_valid(e) ? carriage_geometry(local_env(e), opts(smax, leg, rows, reach)) : [];
 function ok(Gt) = len(Gt) > 0 && carriage_valid(Gt);
@@ -229,7 +247,7 @@ G = fits ? TT[5][max(0, min(test_pullout, len(TT[5])) - 1)][2] : [];   // one pu
 // Parts with the same shape share a print file, whichever pull-outs they come from.
 // A part every pull-out uses gets no label; otherwise the label names the tiers
 // (or single pull-outs) that use it. Order: by family, then tier.
-FAMS = ["rail_L", "rail_R", "base", "front", "rear", "toprail", "bracket", "key"];
+FAMS = ["rail_L", "rail_R", "base", "front", "rear", "toprail", "bracket", "handle", "key"];
 function starts(s, p) = len(s) >= len(p) && len([for (i = seq(len(p))) if (s[i] != p[i]) 1]) == 0;
 function join(v, sep) = len(v) == 0 ? "" : len(v) == 1 ? str(v[0]) : str(v[0], sep, join([for (i = [1 : len(v) - 1]) v[i]], sep));
 function join_and(v) = len(v) <= 2 ? join(v, " & ") : str(v[0], ", ", join_and([for (i = [1 : len(v) - 1]) v[i]]));
@@ -326,7 +344,13 @@ if (fits) {
     echo(str("PULLGRID hw=", 2 * rods, " item=", M ? "M6 nuts (acorn nuts look tidier at the front)" : "1/4in-20 hex nuts (acorn nuts look tidier at the front)"));
     echo(str("PULLGRID hw=", 2 * rods, " item=", M ? "M6 flat washers" : "1/4in flat washers"));
     echo(str("PULLGRID hw=", vsum([for (Gt = GS) floor_screws(Gt)]), " item=", M ? "4 x 20 mm wood screws (floor rails to cabinet)" : "#8 x 3/4in wood screws (floor rails to cabinet)"));
-    echo(str("PULLGRID hw=", vsum([for (Gt = GS) g(Gt, "N") * 16]) + 2 * brackets, " item=", str(M ? "4 x 13 mm pan-head self-tapping screws" : "#8 x 1/2in pan-head sheet-metal screws", MOUNT ? " (slides; brackets to plate)" : " (slides)")));
+    hs = vsum([for (Gt = GS) printed_handle(Gt) ? len(g(Gt, "h_pts")) : 0]);   // printed handles: a screw per post
+    echo(str("PULLGRID hw=", vsum([for (Gt = GS) g(Gt, "N") * 16]) + 2 * brackets + hs, " item=", str(M ? "4 x 13 mm pan-head self-tapping screws" : "#8 x 1/2in pan-head sheet-metal screws",
+             MOUNT ? " (slides; brackets to plate)" : hs > 0 ? " (slides; handles)" : " (slides)")));
+    if (handle == "pull") let(np = vsum([for (Gt = GS) g(Gt, "handle") == "pull" ? len(g(Gt, "h_at")) : 0]), L = g(GS[0], "h_L")) if (np > 0) {
+        echo(str("PULLGRID hw=", np, " item=", M ? str("cabinet pulls, ", L, " mm hole centres") : str("cabinet pulls, ", L == 96 ? "3-3/4in (96 mm)" : L == 128 ? "5-1/16in (128 mm)" : str(inch(L), "in"), " hole centers")));
+        echo(str("PULLGRID hw=", 2 * np, " item=", M ? "M4 x 12 mm machine screws (pulls: theirs are too long for the 6 mm plate)" : "8-32 x 1/2in machine screws (pulls: theirs are too long for the 6 mm plate)"));
+    }
     if (MOUNT) echo(str("PULLGRID hw=", 2 * brackets, " item=", M ? "4 x 16 mm wood screws (brackets to door)" : "#8 x 5/8in wood screws (brackets to door)"));
     if (MOUNT && len(TV) > 1) echo(str("PULLGRID hw=8 item=", M ? "M4 flat washers (shims, if one tier sits back from the door)" : "#8 flat washers (shims, if one tier sits back from the door)"));
     echo("PULLGRID hw=1 item=CA glue or epoxy (plate seams)");
@@ -337,6 +361,13 @@ if (fits) {
     if (rail_type == "angle" && vmin([for (Gt = GS) g(Gt, "leg")]) == 0) echo("PULLGRID WARNING angle_too_short");
     if (MOUNT && door_thickness < 15) echo("PULLGRID WARNING door_too_thin");
     if (len(TV) < K) echo("PULLGRID WARNING tier_skipped");
+    if (!MOUNT && handle != "none") {
+        echo(str("PULLGRID handle=", handle, " dir=", handle == "knob" ? "none" : handle_dir, " total=", vsum([for (Gt = GS) len(g(Gt, "h_at"))]),
+                 " size=", g(GS[0], "h_L"), " depth=", handle_depth(handle)));
+        if (len([for (Gt = GS) if (len(g(Gt, "h_at")) < g(Gt, "h_want")) 1])) echo("PULLGRID WARNING handle_blocked");
+        else if (len([for (Gt = GS) if (g(Gt, "h_moved")) 1])) echo("PULLGRID WARNING handle_moved");
+        if (HUNG && clear_front >= 0 && clear_front < HD + 2 - FFT) echo("PULLGRID WARNING handle_hits_door");
+    }
 }
 
 // ---------- Render ----------

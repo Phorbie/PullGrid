@@ -58,11 +58,11 @@ Choose **Keep it hinged** in the generator if:
 - You want to be able to open the door without pulling the shelf out.
 - You have fixed shelves and want to pull out **one tier at a time**.
 
-In keep-hinged mode the generator dodges your hinges, and the front plate is solid with finger slots. To reduce the blocked-side problem, swap to **170° hinges**: they're widely sold for both face-frame and frameless cabinets, use the standard 35 mm cup, and let the door swing flat out of the way. Match your door's overlay when you buy them.
+In keep-hinged mode the generator dodges your hinges, and the front plate is solid with the [handles you pick](parameters.md#front-handles): slots, printed bars, arches or knobs, or a store-bought pull. Handles that stick out move the pull-out back so the door still closes. To reduce the blocked-side problem, swap to **170° hinges**: they're widely sold for both face-frame and frameless cabinets, use the standard 35 mm cup, and let the door swing flat out of the way. Match your door's overlay when you buy them.
 
 ## No door
 
-Cabinet without a door, or you're leaving it off? Choose **No door**. The front plate is the face, solid with finger slots, and there are no hinges to dodge. Unscrew any leftover hinge plates or catches before you fit the rails.
+Cabinet without a door, or you're leaving it off? Choose **No door**. The front plate is the face, with the [handles you pick](parameters.md#front-handles), and there are no hinges to dodge. Unscrew any leftover hinge plates or catches before you fit the rails.
 
 ## When the door only opens to 90°
 

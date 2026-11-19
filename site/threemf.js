@@ -46,7 +46,7 @@ const settings = (kind) => ({
   sparse_infill_density: "25%",
   sparse_infill_pattern: "gyroid",
 });
-const SMALL = new Set(["bracket", "key"]);  // share one plate
+const SMALL = new Set(["bracket", "handle", "key"]);  // share one plate
 
 // ---------- STL ----------
 export function parseStl(u8) {
@@ -131,7 +131,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 const num = (v) => String(Math.round(v * 1e4) / 1e4);
 const family = (label) => label.replace(/ \d+\/\d+$/, "");
 // part type from its id, whatever group prefix it carries (t1-2_, t1p1_, p1_, ...)
-const kindOf = (p) => (p.id.match(/(?:^|_)(toprail|rail|base|front|rear|bracket|key)(?:_|$)/) || [, "other"])[1];
+const kindOf = (p) => (p.id.match(/(?:^|_)(toprail|rail|base|front|rear|bracket|handle|key)(?:_|$)/) || [, "other"])[1];
 
 // parts: [{ id, label, qty, stl: Uint8Array }] in report order.
 // Returns { plates: [{ name, items: [{ part, x, y, w, d }] }], files: [{ name, data }] }
@@ -145,9 +145,13 @@ export function layout3mf(parts, printer) {
   if (test >= 0) plates.push({ name: "TEST FIRST · one base piece", items: packPlates([item(test)], P.bed, P.excl)[0] });
   // then one family per plate (or several), small parts together at the end
   const groups = new Map();
+  // "Brackets and keys", "Handles and keys", ...: whichever small parts this build has
+  const small = ["bracket", "handle", "key"].filter((k) => parts.some((p) => kindOf(p) === k))
+    .map((k) => ({ bracket: "brackets", handle: "handles", key: "keys" })[k]);
+  const smallName = small.length ? (small.length > 1 ? `${small.slice(0, -1).join(", ")} and ${small.at(-1)}` : small[0]).replace(/^./, (c) => c.toUpperCase()) : "";
   parts.forEach((p, i) => {
     // left and right rails print together
-    const k = SMALL.has(kindOf(p)) ? "Brackets and keys" : family(p.label).replace(/^(.*Floor rail) (left|right)$/, "$1s");
+    const k = SMALL.has(kindOf(p)) ? smallName : family(p.label).replace(/^(.*Floor rail) (left|right)$/, "$1s");
     if (!groups.has(k)) groups.set(k, []);
     for (let q = 0; q < p.qty - (i === test ? 1 : 0); q++) groups.get(k).push(item(i));
   });

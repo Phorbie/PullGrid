@@ -58,7 +58,18 @@ for o in cfg.findall("object"):
     keys = {m.get("key"): m.get("value") for m in o.findall("metadata")}
     check(keys.get("wall_loops") in ("4", "5") and keys.get("sparse_infill_density") == "25%", f"object {oid}: print settings")
     check(o.find("part") is not None and int(o.find("part").get("id")) == oid, f"object {oid}: part id")
+# names Studio would refuse (one popup per plate) or choke on when it builds file names
+BAD = set('<>[]:/\\|?*"&')
+for o in cfg.findall("object"):
+    for el in [o] + o.findall("part"):
+        nm = (el.find("metadata[@key='name']") if el is not o else o.find("metadata[@key='name']"))
+        if nm is not None: check(not (set(nm.get("value")) & BAD), f"name Studio rejects: {nm.get('value')!r}")
+for o in model.findall("m:resources/m:object", NS):
+    check(not (set(o.get("name") or "") & BAD), f"object name Studio rejects: {o.get('name')!r}")
 plates = cfg.findall("plate")
+for p in plates:
+    nm = p.find("metadata[@key='plater_name']").get("value")
+    check(not (set(nm) & BAD), f"plate name Studio rejects: {nm!r}")
 check([p.find("metadata[@key='plater_name']").get("value") for p in plates] == exp["plates"], "plate names")
 seen = Counter()
 W, D = exp["bed"]

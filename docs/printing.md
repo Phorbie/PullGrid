@@ -7,7 +7,7 @@ The generator's zip contains every part as an STL, already oriented for printing
 Pick your printer next to the download buttons, then download **Bambu Studio project (.3mf)** (it's in the zip too). Open it and everything is set up:
 
 - **Plate 1 is the test piece**: one base piece on its own. Print it and [test-fit it](#test-print-first) before the rest.
-- Every other part is laid out on plates, grouped by part, with copies already made. Plate names say what's on them and how many walls: *Front plate 2/3 · 4 walls*.
+- Every other part is laid out on plates, grouped by part, with copies already made. Plate names say what's on them and how many walls: *Front plate 2 of 3 · 4 walls*.
 - Walls and infill are set **per part** (5 walls on parts that hold screws, 4 elsewhere, 25% gyroid), so they survive a change of process preset.
 - Parts stay clear of the front-left calibration corner on P1 and X1 printers.
 

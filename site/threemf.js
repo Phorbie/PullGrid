@@ -121,6 +121,12 @@ export function plateOrigin(i, count, bed) {
 }
 
 // ---------- 3MF ----------
+// Studio rejects these in plate names (Plater::has_illegal_filename_characters, one
+// popup per plate) and in file names it builds from names when sending a job
+// (SelectMachinePop adds [ ]). "Base 2/3" -> "Base 2 of 3", "Tier 1: x" -> "Tier 1 · x".
+export const ILLEGAL = /[<>\[\]:\/\\|?*"&]/;
+export const safeName = (s) => String(s).replace(/(\d+)\/(\d+)/g, "$1 of $2").replace(/\s*:\s*/g, " · ")
+  .replace(/\s*&\s*/g, " and ").replace(/[<>\[\]:\/\\|?*"&]/g, "-");
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]);
 const num = (v) => String(Math.round(v * 1e4) / 1e4);
 const family = (label) => label.replace(/ \d+\/\d+$/, "");
@@ -135,12 +141,12 @@ export function layout3mf(parts, printer) {
   const plates = [];
   // plate 1: the test piece from docs/printing.md
   const test = parts.findIndex((p) => /(^|_)base_1$/.test(p.id));
-  if (test >= 0) plates.push({ name: "TEST FIRST: one base piece", items: packPlates([item(test)], P.bed, P.excl)[0] });
+  if (test >= 0) plates.push({ name: "TEST FIRST · one base piece", items: packPlates([item(test)], P.bed, P.excl)[0] });
   // then one family per plate (or several), small parts together at the end
   const groups = new Map();
   parts.forEach((p, i) => {
     // left and right rails print together
-    const k = SMALL.has(kindOf(p)) ? "Brackets & keys" : family(p.label).replace(/^(.*Floor rail) (left|right)$/, "$1s");
+    const k = SMALL.has(kindOf(p)) ? "Brackets and keys" : family(p.label).replace(/^(.*Floor rail) (left|right)$/, "$1s");
     if (!groups.has(k)) groups.set(k, []);
     for (let q = 0; q < p.qty - (i === test ? 1 : 0); q++) groups.get(k).push(item(i));
   });
@@ -150,8 +156,8 @@ export function layout3mf(parts, printer) {
     const walls = new Set(items.map((it) => settings(kindOf(parts[it.part])).wall_loops));
     // one piece: its own name ("Base 2/3"); several: the family and a count
     packed.forEach((pl, j) => plates.push({
-      name: `${pl.length === 1 ? parts[pl[0].part].label : `${k} ×${pl.length}${packed.length > 1 ? ` (${j + 1}/${packed.length})` : ""}`}` +
-            ` · ${[...walls].join("/")} walls`,
+      name: safeName(`${pl.length === 1 ? parts[pl[0].part].label : `${k} ×${pl.length}${packed.length > 1 ? ` (${j + 1} of ${packed.length})` : ""}`}` +
+            ` · ${[...walls].join("-")} walls`),
       items: pl,
     }));
   }
@@ -196,7 +202,7 @@ async function project(parts, meshes, plates, P, title, description) {
   ];
   for (const i of used) {
     const m = meshes[i];
-    model.push(`  <object id="${oid.get(i)}" name="${esc(parts[i].label)}" type="model">`, `   <mesh>`, `    <vertices>`);
+    model.push(`  <object id="${oid.get(i)}" name="${esc(safeName(parts[i].label))}" type="model">`, `   <mesh>`, `    <vertices>`);
     for (const v of m.verts) model.push(`     <vertex x="${num(v[0])}" y="${num(v[1])}" z="${num(v[2])}"/>`);
     model.push(`    </vertices>`, `    <triangles>`);
     for (const t of m.tris) model.push(`     <triangle v1="${t[0]}" v2="${t[1]}" v3="${t[2]}"/>`);
@@ -209,10 +215,10 @@ async function project(parts, meshes, plates, P, title, description) {
 
   const cfg = [`<?xml version="1.0" encoding="UTF-8"?>`, `<config>`];
   for (const i of used) {
-    const p = parts[i], meta = { name: p.label, extruder: "1", ...settings(kindOf(p)) };
+    const p = parts[i], meta = { name: safeName(p.label), extruder: "1", ...settings(kindOf(p)) };
     cfg.push(`  <object id="${oid.get(i)}">`, ...Object.entries(meta).map(([k, v]) => `    <metadata key="${k}" value="${esc(v)}"/>`),
       `    <part id="${oid.get(i)}" subtype="normal_part">`,
-      `      <metadata key="name" value="${esc(p.label)}"/>`,
+      `      <metadata key="name" value="${esc(safeName(p.label))}"/>`,
       `      <metadata key="matrix" value="1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"/>`,
       `      <mesh_stat face_count="${meshes[i].tris.length}" edges_fixed="0" degenerate_facets="0" facets_removed="0" facets_reversed="0" backwards_edges="0"/>`,
       `    </part>`, `  </object>`);

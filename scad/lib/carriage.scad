@@ -270,8 +270,15 @@ module plate_full(G, which = "front") {
                 box([cx1 - 18, ya, zs0], [cx1, yb, zt]);
                 for (x = g(G, "px")) box([x - GW / 2 - RT - 5, ya, zs0], [x + GW / 2 + RT + 5, yb, zt]);
                 for (s = seams(zs0, zt, g(G, "n_plate"))) box([cx0, ya, s - 20], [cx1, yb, s + 20]);  // rungs
-                if (F) for (x = g(G, "br_x"), z = g(G, "br_z"))                  // bracket pads
-                    box([x - BR_W / 2 - 4, ya, z - BR_H / 2 - 4], [x + BR_W / 2 + 4, yb, z + BR_H / 2 + 4]);
+                if (F) for (z = g(G, "br_z")) {
+                    lo = z - BR_H / 2 - 4; hi = z + BR_H / 2 + 4;
+                    bars = concat([[zs0, zs1], [zt - CH - 4, zt]], [for (s = seams(zs0, zt, g(G, "n_plate"))) [s - 20, s + 20]]);
+                    // a pad must overlap a band or rung, or it prints loose: add a rung if none passes
+                    if (len([for (b = bars) if (b[0] < hi - 1 && b[1] > lo + 1) 1]) == 0)
+                        box([cx0, ya, z - 20], [cx1, yb, z + 20]);
+                    for (x = g(G, "br_x"))                                       // bracket pads
+                        box([x - BR_W / 2 - 4, ya, lo], [x + BR_W / 2 + 4, yb, hi]);
+                }
             }
             for (x = g(G, "px")) {
                 for (s = [-1, 1])                                                   // board groove

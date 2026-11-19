@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Smoke tests: render a few cabinets, check the PULLGRID report lines.
+# Smoke tests: evaluate many cabinets and modes, check the PULLGRID report lines.
 # Usage: tests/run.sh   (needs openscad on PATH)
 set -u
 cd "$(dirname "$0")/.."
@@ -10,7 +10,10 @@ fail=0
 run() {  # name, expected-substring, -D args...
   local name=$1 expect=$2; shift 2
   local log="$OUT/$name.log"
-  openscad -o "$OUT/$name.stl" -D 'part="frame"' "$@" "$SCAD" >"$log" 2>&1
+  # .echo export evaluates the model without rendering geometry: fast, and the
+  # report is all these tests check (print_parts.sh / interference.sh render)
+  openscad -o "$OUT/$name.echo" -D 'part="frame"' "$@" "$SCAD" >"$log" 2>&1
+  cat "$OUT/$name.echo" >>"$log" 2>/dev/null
   if grep -q "$expect" "$log"; then
     echo "ok   $name  $(grep -o 'envelope_mm=[^"]*' "$log" | head -1)"
   else

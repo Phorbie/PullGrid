@@ -66,11 +66,20 @@ Lines about one tier start with `tier=<n> `; everything else (parts, hardware, c
 tests/run.sh            # smoke tests: 50+ cabinets and modes, checks report lines
 tests/interference.sh   # every pair of parts must not overlap; tie rods must thread every hole;
                         # nothing in any tier may hit a keep-out or shelf
-tests/print_parts.sh    # every print part exports, sits on z = 0 and fits the bed
+tests/print_parts.sh    # every print part exports, sits on z = 0 and fits the bed; the Pieces
+                        # view shows exactly one body per printed piece
 tests/threemf.sh p1s    # the Bambu Studio project builds, and every part lands on its plate
 ```
 
 The interference test intersects pairs of parts and measures the result's volume. Part pairs use one tier (`-D test_tier=k` picks which); the whole-cabinet pairs use every tier in cabinet coordinates. Zero-volume face contact is fine; anything over 1 mm³ is a collision. All three suites accept extra `-D` arguments, so you can run them against any configuration, and CI runs all three.
+
+## The viewer
+
+The 3D view only displays what the model renders; nothing in it feeds back into the geometry.
+
+- **Pieces** renders `part="pieces"` (and `"rail_pieces"` for printed rails): the same slices `print_part()` prints, in place, each shrunk 0.25 mm about its own centre so seams show and no two pieces fuse, with the bowtie keys in their pockets. The site colours each separate body so neighbours differ and paints the keys orange. It renders only when someone picks Pieces.
+- **Board looks** (openGrid, Hex, SKÅDIS, Multiboard) are a shader on the board faces, measured from the openGrid cell origin the report gives. They're looks only: the frame is grooved for openGrid boards.
+- **Handles** move one pull-out each along its slide (all of them at once with a mounted door, which carries every pull-out). The slider moves them all.
 
 ## Why openGrid boards aren't modeled
 

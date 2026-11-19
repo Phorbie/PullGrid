@@ -98,7 +98,7 @@ clear_front = -1;
 
 /* [Render] */
 show_cabinet = true;
-part = "assembly"; // [assembly, carriage, boards, rails, slides_fixed, slides_moving, door, cabinet, keepouts, envelope, print, none]
+part = "assembly"; // [assembly, carriage, pieces, rail_pieces, boards, rails, slides_fixed, slides_moving, door, cabinet, keepouts, envelope, print, none]
 // With part = print: which part (index in the PULLGRID part list)
 print_index = 0;
 // Preview only: how far the frame is pulled out (0 = closed, 1 = full slide travel)
@@ -364,6 +364,8 @@ module tier_parts(Gt, ext) for (x = g(Gt, "xo")) translate([x, 0, 0]) {
         }
     }
     if (P == "carriage") carriage_part(Gt);
+    if (P == "pieces") carriage_pieces(Gt);
+    if (P == "rail_pieces" && rail_type == "printed") carriage_pieces(Gt, rails = true);
     if (P == "boards") boards_part(Gt);
     if (P == "rails" && rail_type == "printed") { rail_full(Gt, "L"); rail_full(Gt, "R"); }
     if (P == "slides_fixed") hardware_part(Gt, "fixed");

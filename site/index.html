@@ -222,7 +222,7 @@
       <div class="viewer" id="viewer">
         <div class="busy" id="busy" hidden><span></span>Rendering</div>
         <div class="viewbar">
-          <label class="ext">Pull out <input type="range" id="extension" min="0" max="100" value="55"></label>
+          <label class="ext">Pull out <input type="range" id="extension" min="0" max="100" step="any" value="55"></label>
           <div class="vbtns">
             <button type="button" class="ghost sm" id="view-toggle" aria-expanded="false" aria-controls="viewpanel">View</button>
             <button type="button" class="ghost sm" id="view-reset">Reset view</button>
@@ -230,15 +230,17 @@
         </div>
         <div class="viewpanel" id="viewpanel" hidden>
           <div class="vrow"><span>Printed parts</span>
-            <div class="seg" data-view="printed"><button type="button" data-v="solid">Solid</button><button type="button" data-v="highlight">Highlight</button><button type="button" data-v="outline">Outline</button></div></div>
-          <div class="vrow"><span>openGrid boards</span>
-            <div class="seg" data-view="boards"><button type="button" data-v="plain">Plain</button><button type="button" data-v="grid">Mock-up</button></div></div>
-          <div class="vrow" id="vunits-row" hidden><span>Pull-outs</span><div class="chips" id="vunits"></div></div>
-          <small>Click the legend below to show or hide each kind of part.</small>
+            <div class="seg" data-view="printed"><button type="button" data-v="solid">Solid</button><button type="button" data-v="highlight">Highlight</button><button type="button" data-v="pieces" title="Each printed piece on its own, with the seams and bowtie keys">Pieces</button></div></div>
+          <div class="vrow"><span>Board look</span>
+            <div class="seg" data-view="boards"><button type="button" data-v="plain">Plain</button><button type="button" data-v="opengrid">openGrid</button><button type="button" data-v="hex" title="Honeycomb Storage Wall style">Hex</button><button type="button" data-v="skadis">SKÅDIS</button><button type="button" data-v="multiboard">Multiboard</button></div>
+            <small>A look only: the frame's grooves are sized for openGrid boards.</small></div>
+          <div class="vrow"><span>Handles</span>
+            <div class="seg" data-view="handles"><button type="button" data-v="on">Show</button><button type="button" data-v="off">Hide</button></div></div>
+          <small>Drag an orange handle to pull out one pull-out, or use the slider for all of them. Click the legend below to show or hide each kind of part.</small>
         </div>
         <div class="legend" aria-label="Show or hide">
           <button type="button" data-cat="printed" title="Show or hide printed parts"><i class="sw frame"></i>Printed</button>
-          <button type="button" data-cat="boards" title="Show or hide the openGrid boards"><i class="sw board"></i>openGrid</button>
+          <button type="button" data-cat="boards" title="Show or hide the boards"><i class="sw board"></i>Boards</button>
           <button type="button" data-cat="hardware" title="Show or hide slides, rods and angle"><i class="sw metal"></i>Hardware</button>
           <button type="button" data-cat="door" title="Show or hide the door"><i class="sw door"></i>Door</button>
           <button type="button" data-cat="cabinet" title="Show or hide the cabinet"><i class="sw cab"></i>Cabinet</button>

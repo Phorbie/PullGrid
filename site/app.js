@@ -31,6 +31,8 @@ const DODGE = {
 // preview parts: [name, moves with the slide?]
 const PREVIEW = [["carriage", true], ["boards", true], ["slides_moving", true], ["door", true],
                  ["rails", false], ["slides_fixed", false], ["cabinet", false], ["keepouts", false]];
+// printed pieces in place, seams and keys showing: rendered only when the view asks for them
+const PIECES = [["pieces", true], ["rail_pieces", false]];
 const DOCS = "docs/";
 const PETG = 1.27, FILL = 0.45;  // g/cm³, rough share of solid volume at typical walls/infill
 
@@ -302,7 +304,7 @@ async function run(d) {
   inflight = true;
   $("#busy").hidden = false;
   try {
-    const out = await renderParts(d, PREVIEW.map((p) => p[0]));
+    const out = await renderParts(d, [...PREVIEW.map((p) => p[0]), ...piecesWanted()]);
     if (!queued) apply(d, out);
   } catch (err) {
     setStatus("bad", `Render failed: ${err.message}`);
@@ -314,13 +316,17 @@ function apply(d, out) {
   report = parseReport(out.carriage.log);
   lastDefines = d;
   meshVolume = 0;
-  (state.door_mode === "mount" ? moving : scene).add(groups.door);  // a kept door stays put; "none" renders nothing
+  (report.door === "mount" ? moving : scene).add(groups.door);  // a kept door stays put; "none" renders nothing
   for (const [name] of PREVIEW) {
     const v = setPart(name, report.fits ? out[name].stl : name === "cabinet" || name === "keepouts" ? out[name].stl : null);
     if (name === "carriage" || name === "rails") meshVolume += v;
   }
+  piecesFor = null;
+  if (out.pieces) setPieces(d, out);
+  else for (const [name] of PIECES) setPart(name, null);
+  unitExt = {};
+  buildHandles();
   applyExtension();
-  buildUnitChips();
   applyView();
   if (firstFit) { fitView(); firstFit = false; }
   showReport();
@@ -701,7 +707,7 @@ const loader = new STLLoader();
 const moving = new THREE.Group();
 scene.add(moving);
 const groups = {};
-for (const [name, moves] of PREVIEW) { groups[name] = new THREE.Group(); (moves ? moving : scene).add(groups[name]); }
+for (const [name, moves] of [...PREVIEW, ...PIECES]) { groups[name] = new THREE.Group(); (moves ? moving : scene).add(groups[name]); }
 const std = (color, extra = {}) => new THREE.MeshStandardMaterial({ color, roughness: 0.6, ...extra });
 const ghost = { transparent: true, depthWrite: false };
 const mats = {
@@ -710,8 +716,10 @@ const mats = {
   rails: std(0x4c5866), cabinet: std(0xc9a77a, { ...ghost, opacity: 0.2, roughness: 0.9, side: THREE.DoubleSide }),
   keepouts: std(0xc8324f, { ...ghost, opacity: 0.6 }),
   door: std(0xc8a676, { ...ghost, opacity: 0.55, roughness: 0.8 }),
+  pieces: std(0xffffff, { vertexColors: true, roughness: 0.55 }), rail_pieces: std(0xffffff, { vertexColors: true, roughness: 0.55 }),
 };
-const edgeColor = { door: 0x8a6d48, carriage: 0x163650, boards: 0x9a9488, slides_moving: 0x5f6368, slides_fixed: 0x5f6368, rails: 0x252c33, cabinet: 0x8a6d48, keepouts: 0x8e1c33 };
+const edgeColor = { door: 0x8a6d48, carriage: 0x163650, boards: 0x9a9488, slides_moving: 0x5f6368, slides_fixed: 0x5f6368, rails: 0x252c33, cabinet: 0x8a6d48, keepouts: 0x8e1c33,
+                    pieces: 0x163650, rail_pieces: 0x252c33 };
 
 function stlVolume(geo) {  // cm³·1000 = mm³; signed tetrahedra
   const p = geo.attributes.position.array;
@@ -721,19 +729,25 @@ function stlVolume(geo) {  // cm³·1000 = mm³; signed tetrahedra
   return Math.abs(v);
 }
 // ---------- view controls (display only: nothing here changes the model) ----------
-const CAT = { carriage: "printed", rails: "printed", boards: "boards", slides_moving: "hardware", slides_fixed: "hardware",
-              door: "door", cabinet: "cabinet", keepouts: "keepouts" };
-const SPLIT = new Set(["carriage", "rails", "boards", "slides_moving", "slides_fixed"]);   // one mesh per pull-out
+const CAT = { carriage: "printed", rails: "printed", pieces: "printed", rail_pieces: "printed", boards: "boards",
+              slides_moving: "hardware", slides_fixed: "hardware", door: "door", cabinet: "cabinet", keepouts: "keepouts" };
+const SPLIT = new Set(["carriage", "rails", "boards", "slides_moving", "slides_fixed", "pieces", "rail_pieces"]);   // one mesh per pull-out
 const view = (() => {
   const d = { show: { printed: true, boards: true, hardware: true, door: true, cabinet: true, keepouts: true },
-              printed: "solid", boards: "plain", hidden: {} };
+              printed: "solid", boards: "plain", handles: "on" };
   try {
     const v = JSON.parse(localStorage.getItem("pullgrid-view"));
-    if (v) return { ...d, ...v, show: { ...d.show, ...v.show }, hidden: {} };   // hidden pull-outs reset each visit
+    if (v) {
+      const o = { ...d, ...v, show: { ...d.show, ...v.show } };
+      if (o.printed === "outline") o.printed = "pieces";   // earlier names
+      if (o.boards === "grid") o.boards = "opengrid";
+      delete o.hidden;
+      return o;
+    }
   } catch {}
   return d;
 })();
-const saveView = () => { try { localStorage.setItem("pullgrid-view", JSON.stringify({ ...view, hidden: undefined })); } catch {} };
+const saveView = () => { try { localStorage.setItem("pullgrid-view", JSON.stringify(view)); } catch {} };
 
 const ACCENT = 0xe0662d;
 const lineMat = (color, opacity = 1) => new THREE.LineBasicMaterial({ color, transparent: opacity < 1, opacity });
@@ -743,24 +757,92 @@ const look = {
   dim: std(0xb9b4a8, { ...ghost, opacity: 0.16 }), dimLine: lineMat(0x9a9488, 0.25),
   xray: std(0x2f6d9c, { ...ghost, opacity: 0.1 }), xrayLine: lineMat(ACCENT),
 };
-// openGrid mock-up: 28 mm cells drawn on the board faces, from where the
-// model says the cells start (object coordinates = cabinet, pull-out closed)
-function gridMat(origin) {
+// Board looks, drawn on the board faces from where the model says openGrid's
+// cells start (object coordinates = cabinet, pull-out closed). Looks only:
+// the frame is grooved for openGrid. Patterns, from each system's public numbers:
+//   openGrid    28 mm square cells
+//   hex         Honeycomb Storage Wall: 20 mm hexes on a 23.6 mm pitch
+//   SKÅDIS      5 x 15 mm slots on a 40 mm grid, plus the same grid shifted 20 / 20
+//   Multiboard  25 mm grid: octagonal multiholes, small peg holes between them
+const LOOKS = { opengrid: 0, hex: 1, skadis: 2, multiboard: 3 };
+const LOOK_GLSL = `
+  vec2 q = vObj.yz - uOrigin;
+  float f = 1.0;
+#if LOOK == 0
+  vec2 d = abs(fract(q / 28.0) - 0.5);
+  float e = max(d.x, d.y);
+  f = e < 0.3 ? 0.58 : (e > 0.47 ? 0.82 : 1.0);
+#elif LOOK == 1
+  vec2 s = vec2(23.6, 40.876);
+  vec2 a = mod(q, s) - 0.5 * s, b = mod(q - 0.5 * s, s) - 0.5 * s;
+  vec2 h = abs(dot(a, a) < dot(b, b) ? a : b);
+  float m = max(h.x, 0.5 * h.x + 0.8660254 * h.y);
+  f = m < 10.0 ? 0.55 : (m < 11.0 ? 0.86 : 1.0);
+#elif LOOK == 2
+  vec2 a = mod(q, 40.0) - 20.0, b = mod(q + 20.0, 40.0) - 20.0;
+  float sd = min(length(vec2(abs(a.x), max(abs(a.y) - 5.0, 0.0))), length(vec2(abs(b.x), max(abs(b.y) - 5.0, 0.0)))) - 2.5;
+  f = sd < 0.0 ? 0.5 : (sd < 0.9 ? 0.86 : 1.0);
+#else
+  vec2 d = abs(mod(q, 25.0) - 12.5);
+  float o = max(max(d.x, d.y), (d.x + d.y) * 0.7071068);
+  float pg = length(vec2(12.5) - d);
+  f = (o < 10.5 || pg < 3.2) ? 0.55 : ((o < 11.4 || pg < 4.0) ? 0.86 : 1.0);
+#endif
+  diffuseColor.rgb *= f;`;
+function lookMat(origin, kind) {
   const m = std(0xd6d2c8, { roughness: 0.8 });
   m.onBeforeCompile = (sh) => {
     sh.uniforms.uOrigin = { value: new THREE.Vector2(origin[0], origin[1]) };
     sh.vertexShader = sh.vertexShader.replace("#include <common>", "#include <common>\nvarying vec3 vObj;\nvarying vec3 vObjN;")
       .replace("#include <begin_vertex>", "#include <begin_vertex>\nvObj = position;\nvObjN = normal;");
-    sh.fragmentShader = sh.fragmentShader.replace("#include <common>", "#include <common>\nvarying vec3 vObj;\nvarying vec3 vObjN;\nuniform vec2 uOrigin;")
-      .replace("#include <color_fragment>", `#include <color_fragment>
-        if (abs(vObjN.x) > 0.5) {
-          vec2 d = abs(fract((vObj.yz - uOrigin) / 28.0) - 0.5);
-          float e = max(d.x, d.y);
-          diffuseColor.rgb *= e < 0.3 ? 0.58 : (e > 0.47 ? 0.82 : 1.0);
-        }`);
+    sh.fragmentShader = `#define LOOK ${LOOKS[kind]}\n` + sh.fragmentShader
+      .replace("#include <common>", "#include <common>\nvarying vec3 vObj;\nvarying vec3 vObjN;\nuniform vec2 uOrigin;")
+      .replace("#include <color_fragment>", `#include <color_fragment>\n  if (abs(vObjN.x) > 0.5) {${LOOK_GLSL}\n  }`);
   };
-  m.customProgramCacheKey = () => "pullgrid-cells";
+  m.customProgramCacheKey = () => `pullgrid-look-${kind}`;
   return m;
+}
+
+// Pieces view: colour each separate body so neighbours differ; bowtie keys in the accent.
+const PIECE_SHADES = [0x2f6d9c, 0x5b97c4, 0x1f4f75, 0x4a86b3, 0x3a5f80, 0x7aaed3].map((c) => new THREE.Color(c).toArray());
+const KEY_SHADE = new THREE.Color(ACCENT).toArray();
+function colorPieces(geo) {
+  const p = geo.attributes.position.array, n = p.length / 3;
+  const parent = new Int32Array(n);
+  for (let i = 0; i < n; i++) parent[i] = i;
+  const find = (a) => { while (parent[a] !== a) { parent[a] = parent[parent[a]]; a = parent[a]; } return a; };
+  const join = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[b] = a; };
+  const seen = new Map();   // weld shared corners
+  for (let i = 0; i < n; i++) {
+    const k = `${Math.round(p[3 * i] * 50)},${Math.round(p[3 * i + 1] * 50)},${Math.round(p[3 * i + 2] * 50)}`;
+    const f = seen.get(k);
+    if (f === undefined) seen.set(k, i); else join(f, i);
+  }
+  for (let t = 0; t < n; t += 3) { join(t, t + 1); join(t, t + 2); }
+  const comps = new Map();
+  for (let i = 0; i < n; i++) {
+    const r = find(i);
+    let c = comps.get(r);
+    if (!c) comps.set(r, (c = { lo: [Infinity, Infinity, Infinity], hi: [-Infinity, -Infinity, -Infinity], shade: -1 }));
+    for (let a = 0; a < 3; a++) { const v = p[3 * i + a]; if (v < c.lo[a]) c.lo[a] = v; if (v > c.hi[a]) c.hi[a] = v; }
+  }
+  const list = [...comps.values()];
+  for (const c of list) {
+    const d = [0, 1, 2].map((a) => c.hi[a] - c.lo[a]).sort((x, y) => x - y);
+    c.key = d[0] < 4 && d[2] < 32;   // a bowtie key: 28 x 12 x 3 mm
+  }
+  const near = (a, b) => [0, 1, 2].every((k) => a.lo[k] <= b.hi[k] + 2 && b.lo[k] <= a.hi[k] + 2);
+  for (const c of list) {
+    if (c.key) continue;
+    const used = new Set(list.filter((o) => o !== c && o.shade >= 0 && near(c, o)).map((o) => o.shade));
+    while (used.has(++c.shade));
+  }
+  const col = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const c = comps.get(find(i));
+    col.set(c.key ? KEY_SHADE : PIECE_SHADES[c.shade % PIECE_SHADES.length], 3 * i);
+  }
+  geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
 }
 
 // split one rendered part into a mesh per pull-out, by the boxes the model reports
@@ -790,7 +872,7 @@ function splitByUnit(geo, units) {
 
 function setPart(name, stl) {
   const g = groups[name];
-  for (const c of g.children) { c.geometry.dispose(); c.userData.grid?.dispose(); }
+  for (const c of g.children) { c.geometry.dispose(); for (const m of Object.values(c.userData.looks || {})) m.dispose(); }
   g.clear();
   if (!stl || stl.byteLength < 134) return 0;
   const geo = loader.parse(stl.buffer.slice(stl.byteOffset, stl.byteOffset + stl.byteLength));
@@ -800,9 +882,10 @@ function setPart(name, stl) {
     ? splitByUnit(geo, units) : [{ geo, unit: null, grid: units[0]?.grid }];
   for (const pc of pieces) {
     pc.geo.computeVertexNormals();
+    if (name === "pieces" || name === "rail_pieces") colorPieces(pc.geo);
     const mesh = new THREE.Mesh(pc.geo, mats[name]);
     const line = new THREE.LineSegments(new THREE.EdgesGeometry(pc.geo, 25), lineSolid[name]);
-    mesh.userData = { name, unit: pc.unit, grid: name === "boards" && pc.grid ? gridMat(pc.grid) : null };
+    mesh.userData = { name, unit: pc.unit, grid: name === "boards" ? pc.grid : null, looks: {} };
     line.userData = { name, unit: pc.unit, line: true };
     const order = { keepouts: 2, cabinet: 3, door: 4 }[name];
     if (order) mesh.renderOrder = line.renderOrder = order;
@@ -813,22 +896,26 @@ function setPart(name, stl) {
 
 // materials and visibility from the view settings
 function applyView() {
+  const pieces = view.printed === "pieces" && piecesFor === lastDefines;
+  const has = (n) => groups[n].children.length > 0;
   for (const [name, grp] of Object.entries(groups)) {
     const cat = CAT[name], printed = cat === "printed", ghosted = name === "cabinet" || name === "keepouts";
-    grp.visible = view.show[cat] !== false;
+    // in Pieces, the pieces stand in for the whole printed parts they're cut from
+    const swapped = pieces && ((name === "carriage" && has("pieces")) || (name === "rails" && has("rail_pieces")));
+    grp.visible = view.show[cat] !== false && !swapped && (pieces || (name !== "pieces" && name !== "rail_pieces"));
+    const mode = view.printed === "pieces" ? "solid" : view.printed;
     for (const o of grp.children) {
       const u = o.userData;
-      o.visible = !u.unit || !view.hidden[u.unit];
       if (u.line) {
-        o.material = view.printed === "highlight" ? (printed ? look.hlLine : ghosted ? lineSolid[name] : look.dimLine)
-                   : view.printed === "outline" && printed ? look.xrayLine : lineSolid[name];
+        o.material = mode === "highlight" ? (printed ? look.hlLine : ghosted ? lineSolid[name] : look.dimLine) : lineSolid[name];
       } else {
-        const base = name === "boards" && view.boards === "grid" && u.grid ? u.grid : mats[name];
-        o.material = view.printed === "highlight" ? (printed ? look.hlPrinted : ghosted ? mats[name] : look.dim)
-                   : view.printed === "outline" && printed ? look.xray : base;
+        let base = mats[name];
+        if (name === "boards" && view.boards !== "plain" && u.grid) base = u.looks[view.boards] ||= lookMat(u.grid, view.boards);
+        o.material = mode === "highlight" ? (printed ? look.hlPrinted : ghosted ? mats[name] : look.dim) : base;
       }
     }
   }
+  handles.visible = view.handles !== "off";
   for (const b of $$(".legend button[data-cat]")) {
     const on = view.show[b.dataset.cat] !== false;
     b.classList.toggle("off", !on);
@@ -836,17 +923,7 @@ function applyView() {
   }
   for (const seg of $$("#viewpanel .seg[data-view]"))
     for (const b of $$("button", seg)) b.classList.toggle("on", b.dataset.v === view[seg.dataset.view]);
-  for (const b of $$("#vunits button[data-unit]")) {
-    const on = !view.hidden[b.dataset.unit];
-    b.classList.toggle("on", on);
-    b.setAttribute("aria-pressed", on);
-  }
-}
-function buildUnitChips() {
-  const units = report?.units || [], row = $("#vunits-row");
-  row.hidden = units.length < 2;
-  $("#vunits").innerHTML = units.map((u) => `<button type="button" data-unit="${u.t}.${u.p}">${esc(unitName(u, report))}</button>`).join("") +
-    (units.length > 1 ? `<button type="button" class="all" data-unit-all>Show all</button>` : "");
+  if (view.printed === "pieces" && piecesFor !== lastDefines && report?.fits) loadPieces();
 }
 $(".legend").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-cat]");
@@ -856,11 +933,9 @@ $(".legend").addEventListener("click", (e) => {
 });
 $("#viewpanel").addEventListener("click", (e) => {
   const b = e.target.closest("button");
-  if (!b) return;
-  const seg = b.closest(".seg[data-view]");
-  if (seg) view[seg.dataset.view] = b.dataset.v;
-  else if (b.dataset.unit) { if (view.hidden[b.dataset.unit]) delete view.hidden[b.dataset.unit]; else view.hidden[b.dataset.unit] = true; }
-  else if ("unitAll" in b.dataset) view.hidden = {};
+  const seg = b?.closest(".seg[data-view]");
+  if (!seg) return;
+  view[seg.dataset.view] = b.dataset.v;
   saveView(); applyView();
 });
 $("#view-toggle").onclick = () => {
@@ -869,21 +944,142 @@ $("#view-toggle").onclick = () => {
   $("#view-toggle").setAttribute("aria-expanded", !p.hidden);
 };
 
-const ext = $("#extension");
-function applyExtension() {
-  const travel = report?.slide || report?.carriage?.[1] || 0;
-  moving.position.y = -(ext.value / 100) * travel;
+// pieces: rendered on demand, then kept until the model changes
+let piecesFor = null, piecesBusy = null;
+const piecesWanted = () => (view.printed === "pieces" ? PIECES.map((p) => p[0]).filter((n) => n !== "rail_pieces" || state.rail_type === "printed") : []);
+function setPieces(d, out) {
+  for (const [name] of PIECES) setPart(name, out[name]?.stl || null);
+  piecesFor = d;
 }
-ext.oninput = applyExtension;
+async function loadPieces() {
+  const d = lastDefines;
+  if (piecesBusy === d) return;
+  piecesBusy = d;
+  $("#busy").hidden = false;
+  try {
+    const out = await renderParts(d, piecesWanted());
+    if (d === lastDefines) { setPieces(d, out); applyExtension(); applyView(); }
+  } catch (err) {
+    setStatus("bad", `Render failed: ${err.message}`);
+  }
+  piecesBusy = null;
+  if (!inflight) $("#busy").hidden = true;
+}
+
+// ---------- pulling out: the slider moves them all; a handle moves one ----------
+const ext = $("#extension");
+let unitExt = {};   // "tier.pullout" -> 0..1, once a handle has moved it
+const ganged = () => report?.door === "mount";   // a mounted door carries every pull-out at once
+const travelOf = (unit) => (unit && report?.ok?.find((t) => t.n === +unit.split(".")[0])?.slide) || report?.slide || report?.carriage?.[1] || 0;
+const extOf = (unit) => (!unit || ganged() ? +ext.value / 100 : unitExt[unit] ?? +ext.value / 100);
+function applyExtension() {
+  for (const grp of moving.children)
+    for (const o of grp.children) o.position.y = -extOf(o.userData.unit) * travelOf(o.userData.unit);
+  for (const h of handles.children) h.position.y = h.userData.y0 - extOf(h.userData.unit) * travelOf(h.userData.unit);
+}
+ext.oninput = () => { unitExt = {}; applyExtension(); };
+
+const handles = new THREE.Group();
+scene.add(handles);
+const handleMat = std(ACCENT, { roughness: 0.35 }), handleHot = std(0xff8f52, { roughness: 0.35, emissive: 0x5a2200 });
+const HANDLE = { bar: new THREE.CapsuleGeometry(7, 90, 4, 16), post: new THREE.CylinderGeometry(4, 4, 24, 12) };
+function closedBox(objs) {
+  const b = new THREE.Box3();
+  for (const o of objs) if (o.isMesh) { o.geometry.computeBoundingBox(); b.union(o.geometry.boundingBox); }
+  return b;
+}
+// a pull handle (bar on two posts) in front of a closed-position box
+function addHandle(b, unit, zf) {
+  if (b.isEmpty()) return;
+  const h = new THREE.Group(), y0 = b.min.y - 26;
+  const bar = new THREE.Mesh(HANDLE.bar, handleMat);
+  bar.rotation.x = Math.PI / 2;
+  h.add(bar);
+  for (const dz of [-38, 38]) {
+    const post = new THREE.Mesh(HANDLE.post, handleMat);
+    post.position.set(0, 13, dz);
+    h.add(post);
+  }
+  const z = Math.min(b.max.z - 60, Math.max(b.min.z + 60, b.min.z + zf * (b.max.z - b.min.z)));
+  h.position.set((b.min.x + b.max.x) / 2, y0, z);
+  h.userData = { unit, y0 };
+  handles.add(h);
+}
+function buildHandles() {
+  handles.clear();
+  if (!report?.fits) return;
+  if (ganged()) { addHandle(closedBox(groups.door.children.length ? groups.door.children : groups.carriage.children), null, 0.8); return; }
+  for (const u of report.units) {
+    const k = `${u.t}.${u.p}`;
+    addHandle(closedBox(groups.carriage.children.filter((o) => o.userData.unit === k)), k, 0.62);
+  }
+}
+
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let drag = null, hot = null;
+function aim(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+}
+function handleAt(e) {
+  if (!handles.visible || !handles.children.length) return null;
+  aim(e);
+  const hit = ray.intersectObjects(handles.children, true)[0];
+  if (!hit) return null;
+  let h = hit.object;
+  while (h.parent !== handles) h = h.parent;
+  return { h, point: hit.point };
+}
+function setHot(h) {
+  if (h === hot) return;
+  for (const o of [hot, h]) if (o) for (const m of o.children) m.material = o === h ? handleHot : handleMat;
+  hot = h;
+  if (!drag) renderer.domElement.style.cursor = h ? "grab" : "";
+}
+// grab before OrbitControls sees the press (capture on the parent), then drag along the slide
+viewer.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0 || e.target !== renderer.domElement) return;
+  const hit = handleAt(e);
+  if (!hit) return;
+  e.stopPropagation();
+  e.preventDefault();
+  const n = camera.getWorldDirection(new THREE.Vector3()).setY(0);   // a plane holding the slide axis, facing the camera
+  if (n.lengthSq() < 1e-6) n.set(0, 0, 1);
+  drag = { h: hit.h, unit: hit.h.userData.unit, y: hit.point.y, e0: extOf(hit.h.userData.unit), id: e.pointerId,
+           plane: new THREE.Plane().setFromNormalAndCoplanarPoint(n.normalize(), hit.point) };
+  setHot(hit.h);
+  renderer.domElement.setPointerCapture(e.pointerId);
+  renderer.domElement.style.cursor = "grabbing";
+}, true);
+renderer.domElement.addEventListener("pointermove", (e) => {
+  if (!drag) { if (e.pointerType === "mouse" && !e.buttons) setHot(handleAt(e)?.h || null); return; }
+  if (e.pointerId !== drag.id) return;
+  aim(e);
+  const p = ray.ray.intersectPlane(drag.plane, new THREE.Vector3());
+  const travel = travelOf(drag.unit);
+  if (!p || !travel) return;
+  const v = Math.min(1, Math.max(0, drag.e0 - (p.y - drag.y) / travel));
+  if (drag.unit && !ganged()) unitExt[drag.unit] = v;
+  else { ext.value = v * 100; unitExt = {}; }
+  applyExtension();
+});
+const endDrag = (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  drag = null;
+  renderer.domElement.style.cursor = hot ? "grab" : "";
+};
+renderer.domElement.addEventListener("pointerup", endDrag);
+renderer.domElement.addEventListener("pointercancel", endDrag);
+renderer.domElement.addEventListener("pointerleave", () => { if (!drag) setHot(null); });
 
 function fitView() {
-  // frame it all: the cabinet plus the pull-out at full travel
+  // frame it all: the cabinet plus the pull-outs closed and at full travel
   const box = new THREE.Box3().setFromObject(groups.cabinet);
-  const fb = new THREE.Box3().setFromObject(moving);
+  const fb = closedBox(moving.children.flatMap((g) => g.children));
   if (!fb.isEmpty()) {
-    const travel = report?.slide || 0;
-    fb.translate(new THREE.Vector3(0, -moving.position.y - travel, 0));
     box.union(fb);
+    box.union(fb.clone().translate(new THREE.Vector3(0, -travelOf(null) - 40, 0)));
   }
   if (box.isEmpty()) return;
   const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3());

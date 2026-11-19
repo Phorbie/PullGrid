@@ -21,4 +21,22 @@ print(f"{'ok  ' if ok else 'FAIL'} {pid:14s} {size[0]:6.1f} x {size[1]:6.1f} x {
 sys.exit(0 if ok else 1)
 PY
 done <<< "$list"
+
+# The site's Pieces view: every printed piece in place, apart from its
+# neighbours, keys in their pockets. One body per piece the list says to print.
+for kind in pieces rail_pieces; do
+  openscad -o "$OUT/$kind.stl" -D "part=\"$kind\"" "$@" scad/pullgrid.scad >/dev/null 2>&1 || continue
+  python3 - "$OUT/$kind.stl" "$kind" "$list" <<'PY' || fail=1
+import sys, re; sys.path.insert(0, "tests"); from stlvol import bodies
+path, kind, lines = sys.argv[1], sys.argv[2], sys.argv[3]
+want = 0
+for m in re.finditer(r"id=(\S+) qty=(\d+)", lines):
+    pid, q = m.group(1), int(m.group(2))
+    if bool(re.search(r"(^|_)rail_", pid)) == (kind == "rail_pieces"):
+        want += q - 2 if pid.endswith("key") else q      # the list adds two spare keys
+n = bodies(path)
+print(f"{'ok  ' if n == want else 'FAIL'} {kind:14s} {n} bodies, {want} expected")
+sys.exit(0 if n == want else 1)
+PY
+done
 rm -rf "$OUT"; exit $fail

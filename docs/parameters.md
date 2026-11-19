@@ -99,7 +99,7 @@ The angle must reach above the slide's screw line: leg ≥ slide bottom + 28.5 m
 
 | Param | Meaning |
 |---|---|
-| `part` | `assembly`, `carriage`, `boards`, `rails`, `slides_fixed` (slides + angle), `slides_moving` (slides + tie rods), `door`, `cabinet`, `keepouts`, `envelope`, `print`, `none` |
+| `part` | `assembly`, `carriage`, `pieces` (every printed piece in place, seams apart, keys in their pockets), `rail_pieces` (the same for printed rails), `boards`, `rails`, `slides_fixed` (slides + angle), `slides_moving` (slides + tie rods), `door`, `cabinet`, `keepouts`, `envelope`, `print`, `none` |
 | `print_index` | With `part = "print"`: which part, from the `PULLGRID part=` report lines. Print parts come out oriented and sitting on z = 0 |
 | `extension` | Preview only: 0 = closed, 1 = full slide travel |
 | `show_cabinet` | Ghost cabinet in the assembly preview |

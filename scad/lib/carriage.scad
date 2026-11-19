@@ -406,6 +406,36 @@ module part_geom(G, kind) {
     else top_rail_full(G, search(kind[8], "0123456789")[0]);  // "toprail_<p>", p < 10
 }
 
+// Every printed piece where it sits in the assembly, pulled back from its seams
+// by `gap` so the splits show, with the bowtie keys in their pockets. Preview
+// only ("pieces" / "rail_pieces"): the same slices print_part() prints. Each
+// piece also shrinks by `gap` about its own centre so no two pieces touch
+// (a union would fuse touching solids into one body).
+module shrunk(b, d) {
+    c = (b[0] + b[1]) / 2;
+    translate(c) scale([for (a = [0 : 2]) let(w = b[1][a] - b[0][a]) w > 4 * d ? (w - 2 * d) / w : 1]) translate(-c) children();
+}
+module carriage_pieces(G, rails = false, gap = 0.25) {
+    for (s = part_specs(G)) if (rails == (s[3] == "rail_L" || s[3] == "rail_R") && s[3] != "key" && s[3] != "bracket") {
+        sl = slab(s[7], s[8], s[5], s[4]);
+        shrunk(seg_bbox(s), gap) intersection() {
+            part_geom(G, s[3]);
+            if (s[6] == 1) translate([-BIG / 2, sl[0], -BIG / 2]) cube([BIG, sl[1] - sl[0], BIG]);
+            else if (s[6] == 2) translate([-BIG / 2, -BIG / 2, sl[0]]) cube([BIG, BIG, sl[1] - sl[0]]);
+            else translate([-BIG / 2, -BIG / 2, -BIG / 2]) cube(BIG);
+        }
+    }
+    if (!rails) {
+        y0 = g(G, "y0"); L = g(G, "br_len");
+        if (g(G, "mount")) for (x = g(G, "br_x"), z = g(G, "br_z"))
+            shrunk([[x - BR_W / 2, y0 - L, z - BR_H / 2], [x + BR_W / 2, y0, z + BR_H / 2]], gap) bracket_full(G, x, z);
+        // keys sit flush in the pockets plate_keyed() cuts
+        for (F = [true, false], sz = seams(g(G, "zs0"), g(G, "z_top"), g(G, "n_plate")), x = g(G, "key_x"))
+            translate([x, F ? g(G, "y_f") : g(G, "y_r"), sz]) rotate([F ? -90 : 90, 0, 0]) rotate([0, 0, 90])
+                shrunk([[-KEY_L / 2, -KEY_W / 2, -KEY_T], [KEY_L / 2, KEY_W / 2, 0]], gap) translate([0, 0, -KEY_T]) bowtie_key();
+    }
+}
+
 // rotations about x, y, z (degrees), OpenSCAD order: x then y then z
 function rx(a, p) = [p[0], p[1] * cos(a) - p[2] * sin(a), p[1] * sin(a) + p[2] * cos(a)];
 function ry(a, p) = [p[0] * cos(a) + p[2] * sin(a), p[1], -p[0] * sin(a) + p[2] * cos(a)];

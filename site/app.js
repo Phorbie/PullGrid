@@ -16,7 +16,7 @@ const DEFAULTS = {
   offset_left: null, offset_right: null, offset_bottom: null, offset_top: null,
   rear_w: null, rear_h: null, door_intrusion: 0,
   hinges: [], keepouts: [], shelves: [], shelf_thickness: 19, shelf_setback: 0,
-  door_opens: "past_90", reach_from: "auto", printer: null,
+  door_opens: "past_90", sides: {}, printer: null,
   panel_count: 1, panel_thickness: "6.8", pullouts: null, bed_size: "256",
   slide_t: 13, slide_h: 45,
   clear_side: 3, clear_top: 5, clear_rear: 10,
@@ -162,7 +162,7 @@ function mark(el, key, ok) {
 }
 
 form.addEventListener("click", (e) => {
-  const b = e.target.closest(".seg button");
+  const b = e.target.closest(".seg[data-key] button");   // per pull-out sides have their own handler
   if (!b) return;
   const seg = b.parentElement;
   state[seg.dataset.key] = b.dataset.v;
@@ -274,7 +274,9 @@ function defines(s) {
     keepouts: `[${s.keepouts.map((k) => `[${[k.x, k.y, k.z, k.w, k.d, k.h].map(r2).join(",")}]`).join(",")}]`,
     shelves: `[${s.shelves.map((h) => r2(h.z)).join(",")}]`,
     shelf_thickness: L(s.shelf_thickness), shelf_setback: L(s.shelf_setback),
-    door_opens: `"${s.door_opens}"`, reach_from: `"${s.reach_from}"`,
+    door_opens: `"${s.door_opens}"`, reach_from: '"auto"',
+    // per pull-out overrides: { "tier.position": "both" | "left" | "right" }
+    sides: `[${Object.entries(s.sides || {}).filter(([, v]) => v !== "auto").map(([k, v]) => `[${k.split(".").map(Number).join(",")},"${v}"]`).join(",")}]`,
     panel_count: s.panel_count, panel_thickness: s.panel_thickness,
     pullouts: s.pullouts == null ? -1 : s.pullouts, bed_size: s.bed_size,
     door_mode: `"${s.door_mode}"`, door_thickness: L(s.door_thickness), door_overlay: L(s.door_overlay),
@@ -348,13 +350,14 @@ function parseReport(log) {
     else if ((x = t.match(/^boards_y=\[([^\]]*)\] boards_z=\[([^\]]*)\] type=(\w+)/)))
       T.boards = { y: x[1].split(",").map(Number), z: x[2].split(",").map(Number), type: x[3] };
     else if ((x = t.match(/^bracket_mm=([\d.]+)/))) T.bracket = +x[1];
+    else if ((x = t.match(/^pullout=(\d+) reach=(\w+) panels=(\d+)/))) (T.units ||= [])[+x[1] - 1] = { p: +x[1], reach: x[2], panels: +x[3] };
     else if ((x = t.match(/^tiers=(\d+)/))) r.nTiers = +x[1];
     else if ((x = t.match(/^part=(\d+) id=(\S+) qty=(\d+) size=\[([^\]]+)\] label=(.*)$/)))
       r.parts.push({ index: +x[1], id: x[2], qty: +x[3], size: x[4].split(",").map(Number), label: x[5] });
     else if ((x = t.match(/^hw=(\d+) item=(.*)$/))) r.hw.push({ qty: +x[1], item: x[2] });
     else if ((x = t.match(/^cut=(\d+) len=([\d.]+) item=(.*)$/))) r.cuts.push({ qty: +x[1], len: +x[2], item: x[3] });
     else if ((x = t.match(/^door=(\w+) region=(\w+) rails=(\w+)(?: reach=(\w+))?/)))
-      Object.assign(r, { door: x[1], region: x[2], railType: x[3], reach: x[4] || "both" });
+      Object.assign(r, { door: x[1], region: x[2], railType: x[3], reachSetting: x[4] || "auto" });
     else if ((x = t.match(/^keepout=(\d+) dodged_by=(\w+) label=(.*)$/))) r.keepouts.push({ by: x[2], label: x[3] });
     else if ((x = t.match(/^hinges=(\d+)/))) r.hinges = +x[1];
     else if (t.startsWith("ERROR")) r.errors.push(t.slice(6));
@@ -362,6 +365,8 @@ function parseReport(log) {
   }
   r.tiers = r.tiers.filter(Boolean);
   r.ok = r.tiers.filter((t) => t.env);
+  r.units = r.ok.flatMap((t) => (t.units || []).map((u) => ({ ...u, t: t.n, N: t.units.length })));
+  r.oneSided = r.units.some((u) => u.reach !== "both");
   // the first usable tier stands in for "the pull-out" (slider travel, file names)
   Object.assign(r, { env: r.ok[0]?.env, slide: r.ok[0]?.slide, carriage: r.ok[0]?.carriage, pullouts: r.ok[0]?.pullouts });
   r.fits = r.ok.length > 0 && !r.errors.includes("no_fit") && !r.scadErrors.length;
@@ -413,16 +418,44 @@ function showReport() {
             [slides(t), t.cells ? `${t.cells[0]} × ${t.cells[1]} cells` : ""].filter(Boolean).join(" · "))
       : row(tierName(t), `<span class="hint">left empty: only ${fmt(t.skipped)} tall</span>`)).join("");
   }
-  if (report.reach !== "both")
-    html += row("Reach", `from the ${report.reach} only`, `one panel against the ${report.reach === "left" ? "right" : "left"} side, accessories face you`);
+  if (report.oneSided)
+    html += row("Reach", report.units.length === 1 ? `from the ${report.units[0].reach} only`
+      : report.units.filter((u) => u.reach !== "both").map((u) => `${unitName(u, report)}: ${u.reach} only`).join("<br>"),
+      "one panel against the blocked side, accessories face you");
   html += report.door === "mount"
     ? row("Door", report.ok.length > 1 ? `mounted on all ${report.ok.length} tiers` : "mounted on the pull-out",
           report.ok[0]?.bracket ? `brackets ${fmt(report.ok[0].bracket)} deep` : "")
     : row("Hinges", state.hinges.length ? `${state.hinges.length} custom` : state.hinge_side === "none" ? "none" : `${report.hinges} auto`);
   dl.innerHTML = html;
+  showSides();
   ul.innerHTML = report.keepouts.map((k) => `<li><strong>${esc(cap(k.label))}</strong>: ${DODGE[k.by] || k.by}</li>`).join("");
   showBuild();
 }
+
+// "Pull-out", "Left pull-out", "Tier 2 left", matching the part labels
+function unitName(u, r) {
+  const K = r.tiers.length, side = u.N === 2 ? (u.p === 1 ? "left" : "right") : `pull-out ${u.p}`;
+  if (u.N === 1) return K > 1 ? `Tier ${u.t}` : "Pull-out";
+  return K > 1 ? `Tier ${u.t} ${side}` : u.N === 2 ? `${cap(side)} pull-out` : cap(side);
+}
+const SIDE_OPTS = [["auto", "Auto"], ["both", "Both"], ["left", "Left only"], ["right", "Right only"]];
+function showSides() {
+  const el = $("#sides");
+  if (!report?.units?.length) return;
+  el.innerHTML = report.units.map((u) => {
+    const key = `${u.t}.${u.p}`, cur = state.sides[key] || "auto";
+    const got = u.reach === "both" ? "both sides" : `${u.reach} side only`;
+    return `<div class="srow"><b>${esc(unitName(u, report))}</b><div class="seg">` +
+      SIDE_OPTS.map(([v, l]) => `<button type="button" data-side="${key}" data-v="${v}"${v === cur ? ' class="on"' : ""}>${l}</button>`).join("") +
+      `</div>${cur === "auto" ? `<small>Auto: ${got}</small>` : ""}</div>`;
+  }).join("");
+}
+$("#sides").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-side]");
+  if (!b) return;
+  if (b.dataset.v === "auto") delete state.sides[b.dataset.side]; else state.sides[b.dataset.side] = b.dataset.v;
+  showSides(); changed();
+});
 
 function showBuild() {
   const r = report, n = r.pullouts || 1;
@@ -452,7 +485,7 @@ function showBuild() {
     const k = `${t.boards.y}|${t.boards.z}`;
     if (!lay.has(k)) lay.set(k, { b: t.boards, tiers: [], panels: 0 });
     const L = lay.get(k);
-    L.tiers.push(t.n); L.panels += (t.cells?.[2] || 1) * (t.pullouts || 1);
+    L.tiers.push(t.n); L.panels += t.units ? t.units.reduce((a, u) => a + u.panels, 0) : (t.cells?.[2] || 1) * (t.pullouts || 1);
   }
   if (lay.size) {
     const counts = {}, type = r.ok[0].boards.type, cell = 5;
@@ -465,7 +498,9 @@ function showBuild() {
       html += (lay.size > 1 ? `<p class="hint">${tiers.length > 1 ? "Tiers" : "Tier"} ${tiers.join(", ")}: ${panels} panel${panels > 1 ? "s" : ""}</p>` : "") + grid;
     }
     const panels = [...lay.values()].reduce((a, l) => a + l.panels, 0);
-    const lite = r.reach !== "both" && type === "full" ? " Accessories only go on one side, so Lite boards would do." : "";
+    const lite = r.oneSided && type === "full"
+      ? (r.units.every((u) => u.reach !== "both") ? " Accessories only go on one side, so Lite boards would do."
+         : " The one-sided pull-outs only use one face, so Lite boards would do for those.") : "";
     $("#boards").innerHTML =
       `<p>${total} ${type === "full" ? "Full" : "Lite"} boards for ${panels} panel${panels > 1 ? "s" : ""}. Sizes in cells, wide × tall (front-to-back × up).${lite}</p>` +
       html + `<ul class="hw">${Object.entries(counts).map(([k, v]) => `<li><b>${v}×</b> ${k} cells</li>`).join("")}<li>openGrid connector pegs for the board seams</li></ul>`;
@@ -476,7 +511,7 @@ function showBuild() {
   $("#cut").innerHTML = r.cuts.map((c) => `<li><b>${c.qty}×</b> ${esc(spell(c.item))} at ${cutLen(c.len)}</li>`).join("") ||
     "<li>Nothing to cut.</li>";
   // install
-  const mount = r.door === "mount", angle = r.railType === "angle", tiers = r.ok.length > 1, one = r.reach !== "both";
+  const mount = r.door === "mount", angle = r.railType === "angle", tiers = r.ok.length > 1;
   const where = (t) => {
     const rl = t.rails;
     if (!rl) return "";
@@ -500,7 +535,9 @@ function showBuild() {
     mount ? `Take the door off its hinges. Stick double-sided tape on the bracket faces, clip ${tiers ? "every tier" : "the carriage"} in, close it, line the door up and press it on.` : "",
     mount ? "Pull out gently, unscrew the brackets from the plate (they stay taped to the door), screw them to the door, then screw them back to the plate. The slots let you fine-tune height and side-to-side." : "",
     mount && tiers ? "If one tier sits back from the door, put washers between its brackets and the plate until it touches." : "",
-    one ? `Snap openGrid accessories onto the ${r.reach} side of each panel.` : "Snap openGrid accessories onto both sides.",
+    !r.oneSided ? "Snap openGrid accessories onto both sides."
+      : r.units.length === 1 ? `Snap openGrid accessories onto the ${r.units[0].reach} side of the panel.`
+      : `Snap openGrid accessories on: ${r.units.map((u) => `${unitName(u, r).toLowerCase()} ${u.reach === "both" ? "both sides" : `${u.reach} side`}`).join(", ")}.`,
   ].filter(Boolean).map((s) => `<li>${spell(s)}</li>`).join("");
 }
 

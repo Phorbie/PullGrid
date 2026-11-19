@@ -64,10 +64,20 @@ In keep-hinged mode the generator dodges your hinges, and the front plate is sol
 
 Sometimes the door can't swing further: a wall, an appliance or the next doorway's frame stops it. Then the open door stands right beside the pulled-out tier and you can't reach that side at all.
 
-Tell the generator: **How far does the door open? → Only to 90°**. Each tier then gets a single openGrid panel tucked against the hinge side, so every accessory faces the side you can reach.
+Tell the generator: **How far does the door open? → Only to 90°**. The pull-out next to the hinges then gets a single openGrid panel tucked against the hinge side, so every accessory faces the side you can reach. If there are two pull-outs side by side, the other one pulls out clear of the door and stays two-sided.
 
 ![Top view: the door stops at 90 degrees against a neighbouring door frame; the tier's only panel sits against the door side, accessories face the open side](img/one-sided.svg)
 
 You lose the hidden face of the panel, so a one-sided tier holds a bit less. Since nothing hangs on the back, openGrid **Lite** boards are enough.
 
-The same layout is available manually under **Your pull-out → Reach it from**, for a pull-out next to a wall or fridge whatever the door does.
+## Choosing sides for each pull-out
+
+Every pull-out (in every tier) has its own setting under **Your pull-out → Sides**: *Auto*, *Both*, *Left only* or *Right only*. Use it for a pull-out next to a wall or a fridge, or to make a two-sided one single-sided on purpose.
+
+*Auto* picks:
+
+- **One-sided** for the pull-out next to the hinges of a kept door that only opens to 90°.
+- **Facing outward** for side-by-side pull-outs on a mounted door. They come out together, with only about 1½″ (40 mm) between them, so nothing on the inner faces would be reachable.
+- **Both sides** for everything else.
+
+Pull-outs set the same way share print files.

@@ -26,7 +26,7 @@ Relative to the cabinet **interior**: `x` across from the left wall, `y` depth f
 | `door_thickness` | 19 | Door mount needs at least 15 |
 | `door_overlay` | 12.7 | How far the door overlaps the opening per side. Preview only |
 | `face_frame_thickness` | -1 | Face frame depth, front to back. Auto: 19 face frame, 0 frameless. Sets the bracket depth |
-| `door_opens` | `past_90` | Keep mode: `only_90` if something stops the door at 90°. Then each tier is one-sided (see `reach_from`) |
+| `door_opens` | `past_90` | Keep mode: `only_90` if something stops the door at 90°. Then the pull-out next to the hinges is one-sided (see `sides`) |
 
 With a mounted door and more than one tier, every tier is fixed to the door: they share the shortest slide length and the deepest front plane, and get one row of brackets each instead of two.
 
@@ -69,7 +69,8 @@ Each tier is solved separately, in the slice between its shelf (or the floor) an
 | `panel_thickness` | 6.8 | 6.8 = openGrid Full (double-sided), 4.0 = Lite |
 | `pullouts` | -1 (auto) | Side-by-side pull-outs. Auto = as few as fit the print bed |
 | `bed_size` | 256 | Parts are split to fit, with a 6 mm margin |
-| `reach_from` | `auto` | `both`, `left` or `right`: which side of a pulled-out tier you can reach. One side = a single panel against the other side, all accessories facing you (`panel_count` is ignored). Auto = both, unless `door_mode = keep` and `door_opens = only_90`, which picks the side away from the hinges |
+| `reach_from` | `auto` | `both`, `left` or `right` for every pull-out at once. One side = a single panel against the other side, all accessories facing you (`panel_count` is ignored) |
+| `sides` | `[]` | Per pull-out, beating `reach_from`: `[[tier, position, "both" \| "left" \| "right" \| "auto"], ...]`, position counted from the left. Auto: one-sided next to the hinges of a kept door with `door_opens = only_90`; side-by-side pull-outs on a mounted door face outward; otherwise both |
 
 The frame is sized to whole 28 mm openGrid cells, so it can come out up to one cell shorter and shallower than the space allows.
 
@@ -102,4 +103,4 @@ The angle must reach above the slide's screw line: leg ≥ slide bottom + 28.5 m
 | `print_index` | With `part = "print"`: which part, from the `PULLGRID part=` report lines. Print parts come out oriented and sitting on z = 0 |
 | `extension` | Preview only: 0 = closed, 1 = full slide travel |
 | `show_cabinet` | Ghost cabinet in the assembly preview |
-| `test_tier` | Hidden. Which tier `G` describes (for the interference tests) |
+| `test_tier`, `test_pullout` | Hidden. Which pull-out `G` describes (for the interference tests) |

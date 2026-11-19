@@ -66,6 +66,8 @@ panel_count = 1;
 // Sides of a pulled-out tier you can reach. auto = both, unless a kept door only opens to 90 degrees.
 // One side = a single panel against the other side, every accessory facing you.
 reach_from = "auto"; // [auto, both, left, right]
+// Per pull-out override, beats reach_from: [[tier, position from the left, "both" | "left" | "right" | "auto"], ...]
+sides = [];
 // 6.8 = openGrid Full (double-sided), 4.0 = openGrid Lite
 panel_thickness = 6.8; // [6.8, 4.0]
 // Pull-outs side by side (-1 = as few as fit your print bed)
@@ -102,8 +104,9 @@ print_index = 0;
 extension = 0; // [0:0.05:1]
 
 /* [Hidden] */
-// tests: which tier G (the first valid tier's layout) describes
+// tests: which pull-out G describes (tier index from 0, position from 1)
 test_tier = 0;
+test_pullout = 1;
 include <lib/envelope.scad>
 include <lib/carriage.scad>
 include <lib/cabinet_preview.scad>
@@ -152,10 +155,18 @@ FFT = face_frame_thickness >= 0 ? face_frame_thickness : (FF ? 19 : 0);
 CF = clear_front >= 0 ? clear_front : max(0, 9 - FFT);
 AT = angle_thickness > 0 ? angle_thickness : (region == "metric" ? 3.0 : 3.2);
 M = region == "metric";
-// a kept door that stops at 90 degrees blocks the hinge side of a pulled-out tier
-REACH = reach_from != "auto" ? reach_from
-      : (!MOUNT && door_opens == "only_90" && hinge_side != "none") ? (hinge_side == "left" ? "right" : "left")
-      : "both";
+// Which sides of each pull-out you can reach. Auto: a kept door stopped at 90
+// degrees blocks the pull-out next to its hinges (the others pull out past it);
+// side-by-side pull-outs on a mounted door come out together and face each other
+// across a ~40 mm gap, so the outer ones face outward.
+function reach_of(t, p, N) = let(m = [for (s = sides) if (s[0] == t && s[1] == p && s[2] != "auto") s[2]])
+    len(m) ? m[0]
+  : reach_from != "auto" ? reach_from
+  : !MOUNT && door_opens == "only_90" && hinge_side != "none" && p == (hinge_side == "left" ? 1 : N)
+    ? (hinge_side == "left" ? "right" : "left")
+  : MOUNT && N > 1 && (p == 1 || p == N) ? (p == 1 ? "left" : "right")
+  : "both";
+TIER_REACH = reach_from == "auto" ? "both" : reach_from;   // tier-level layout: validity, slides, sizes
 env0 = base_envelope(front_w, front_h, r_w, r_h, interior_depth,
                      o_l, o_r, o_b, o_t, clear_side, clear_top, clear_rear, CF);
 
@@ -172,12 +183,13 @@ BAYS = [for (i = seq(K)) [i == 0 ? 0 : SH[i - 1], i == 0 ? o_b : SH[i - 1],
 SOLVED = [for (b = BAYS) apply_keepouts(tier_envelope(env0, b[0], b[1], b[2], b[3]), all_keepouts)];
 
 function local_env(e) = [e[0], e[1], e[2] - e[6], e[3] - e[6], e[4], e[5], 0];
-function opts(smax, leg, rows) =
+function opts(smax, leg, rows, reach) =
     [["panels", max(1, panel_count)], ["board_t", panel_thickness], ["slide_t", slide_t], ["slide_h", slide_h],
      ["bed", bed_size], ["pullouts", pullouts], ["region", region], ["rail_type", rail_type],
-     ["angle_t", AT], ["door_mode", door_mode], ["fft", FFT], ["reach", REACH],
+     ["angle_t", AT], ["door_mode", door_mode], ["fft", FFT], ["reach", reach],
      ["slide_max", smax], ["leg_force", leg], ["br_rows", rows]];
-function geom(e, smax = BIG, leg = -1, rows = 2) = env_valid(e) ? carriage_geometry(local_env(e), opts(smax, leg, rows)) : [];
+function geom(e, smax = BIG, leg = -1, rows = 2, reach = TIER_REACH) =
+    env_valid(e) ? carriage_geometry(local_env(e), opts(smax, leg, rows, reach)) : [];
 function ok(Gt) = len(Gt) > 0 && carriage_valid(Gt);
 function vmax(v) = len(v) ? max(v) : 0;
 function vmin(v) = len(v) ? min(v) : 0;
@@ -195,28 +207,58 @@ LEGS = [for (Gt = GB) if (ok(Gt)) g(Gt, "leg")];
 LEG = rail_type == "angle" && vmin(LEGS) > 0 ? vmax(LEGS) : -1;   // one stock size of angle
 GANGED = MOUNT && len([for (Gt = GB) if (ok(Gt)) 1]) > 1;
 GC = [for (e = ENV) geom(e, SMAX > 0 ? SMAX : BIG, LEG, GANGED ? 1 : 2)];
-// [tier number, z of its support, G, envelope (cabinet coordinates), keep-out log]
-TL = [for (i = seq(K)) [i + 1, ENV[i][6], GC[i], ENV[i], SOLVED[i][1]]];
+// One G per pull-out: the tier's envelope, slides and position, its own panel layout.
+// [position, reach, G with N = 1 and its own xo]
+function gset(Gt, k, v) = [for (kv = Gt) kv[0] == k ? [k, v] : kv];
+function units(i) = let(Gt = GC[i], N = g(Gt, "N"), xs = g(Gt, "xo"))
+    [for (p = seq(N)) let(r = reach_of(i + 1, p + 1, N),
+                          Gr = r == TIER_REACH ? Gt : geom(ENV[i], SMAX > 0 ? SMAX : BIG, LEG, GANGED ? 1 : 2, r),
+                          use = ok(Gr) ? Gr : Gt)
+        [p + 1, ok(Gr) ? r : TIER_REACH, gset(gset(use, "N", 1), "xo", [xs[p]])]];
+// [tier number, z of its support, G, envelope (cabinet coordinates), keep-out log, pull-outs]
+TL = [for (i = seq(K)) [i + 1, ENV[i][6], GC[i], ENV[i], SOLVED[i][1], ok(GC[i]) ? units(i) : []]];
 TV = [for (t = TL) if (ok(t[2])) t];
 fits = len(TV) > 0;
-G = fits ? TV[min(test_tier, len(TV) - 1)][2] : [];   // first tier's layout (tests)
+// every pull-out: [tier, position, G, pull-outs in its tier, reach, z of its support]
+UNITS = [for (t = TV) for (u = t[5]) [t[0], u[0], u[2], len(t[5]), u[1], t[1]]];
+TT = fits ? TV[min(test_tier, len(TV) - 1)] : [];
+G = fits ? TT[5][max(0, min(test_pullout, len(TT[5])) - 1)][2] : [];   // one pull-out's layout (tests)
 
-// Parts with the same shape share a print file, whichever tiers they come from.
-// A part every tier uses gets no tier label. Order: by family, then tier.
+// Parts with the same shape share a print file, whichever pull-outs they come from.
+// A part every pull-out uses gets no label; otherwise the label names the tiers
+// (or single pull-outs) that use it. Order: by family, then tier.
 FAMS = ["rail_L", "rail_R", "base", "front", "rear", "toprail", "bracket", "key"];
 function starts(s, p) = len(s) >= len(p) && len([for (i = seq(len(p))) if (s[i] != p[i]) 1]) == 0;
 function join(v, sep) = len(v) == 0 ? "" : len(v) == 1 ? str(v[0]) : str(v[0], sep, join([for (i = [1 : len(v) - 1]) v[i]], sep));
 function join_and(v) = len(v) <= 2 ? join(v, " & ") : str(v[0], ", ", join_and([for (i = [1 : len(v) - 1]) v[i]]));
 function tier_names(ns) = str(len(ns) > 1 ? "Tiers " : "Tier ", join_and(ns));
-TSPECS = [for (t = TV) part_specs(t[2])];
-ALL = [for (f = FAMS) for (ti = seq(len(TV))) for (s = TSPECS[ti]) if (starts(s[3], f)) [part_sig(TV[ti][2], s), s, TV[ti][0], ti]];
+function unit_name(u) = let(t = u[0], p = u[1], N = u[3])
+    N == 1 ? str("Tier ", t)
+  : K == 1 ? (N == 2 ? (p == 1 ? "Left pull-out" : "Right pull-out") : str("Pull-out ", p))
+  : str("Tier ", t, " ", N == 2 ? (p == 1 ? "left" : "right") : str("pull-out ", p));
+// whole tiers by number, single pull-outs by name; the same position in every
+// tier is "Left pull-outs"
+function group_label(us) = let(pos = uniq([for (ui = us) UNITS[ui][1]]), Ns = uniq([for (ui = us) UNITS[ui][3]]),
+        tiers = uniq([for (ui = us) UNITS[ui][0]]), every = len(us) == len([for (u = UNITS) if (u[1] == pos[0] && u[3] == Ns[0]) 1]))
+    len(tiers) > 1 && len(pos) == 1 && len(Ns) == 1 && Ns[0] > 1
+      ? [str(Ns[0] == 2 ? (pos[0] == 1 ? "Left pull-outs" : "Right pull-outs") : str("Pull-out ", pos[0], " in each tier"),
+             every ? "" : str(", tiers ", join_and(tiers))),
+         str(every ? "" : str("t", join(tiers, "-")), "p", pos[0])]
+      : group_label_(us);
+function group_label_(us) = let(tiers = uniq([for (ui = us) UNITS[ui][0]]),
+        full = [for (t = tiers) if (len([for (u = UNITS) if (u[0] == t) 1]) == len([for (ui = us) if (UNITS[ui][0] == t) 1])) t],
+        part = [for (ui = us) if (len(search(UNITS[ui][0], full)) == 0) ui])
+    [join(concat(len(full) ? [tier_names(full)] : [], [for (ui = part) unit_name(UNITS[ui])]), ", "),
+     join(concat([for (t = full) str("t", t)], [for (ui = part) str("t", UNITS[ui][0], "p", UNITS[ui][1])]), "-")];
+TSPECS = [for (u = UNITS) part_specs(u[2])];
+ALL = [for (f = FAMS) for (ui = seq(len(UNITS))) for (s = TSPECS[ui]) if (starts(s[3], f)) [part_sig(UNITS[ui][2], s), s, UNITS[ui][0], ui]];
 SIGS = [for (a = ALL) a[0]];
-specs = [for (sg = uniq(SIGS)) let(m = [for (a = ALL) if (a[0] == sg) a], s = m[0][1], ns = uniq([for (a = m) a[2]]),
-                                   tagged = len(ns) < len(TV),
-                                   // keys come with 2 spares per tier; keep 2 for the build
+specs = [for (sg = uniq(SIGS)) let(m = [for (a = ALL) if (a[0] == sg) a], s = m[0][1], us = uniq([for (a = m) a[3]]),
+                                   tagged = len(us) < len(UNITS), L = tagged ? group_label(us) : ["", ""],
+                                   // keys come with 2 spares per pull-out; keep 2 for the build
                                    q = s[0] == "key" ? vsum([for (a = m) a[1][2] - 2]) + 2 : vsum([for (a = m) a[1][2]]))
-    [tagged ? str("t", join(ns, "-"), "_", s[0]) : s[0], tagged ? str(tier_names(ns), ": ", s[1]) : s[1],
-     q, s[3], s[4], s[5], s[6], s[7], s[8], s[9], s[10], s[11], m[0][3]]];   // [12] = tier index in TV
+    [tagged ? str(L[1], "_", s[0]) : s[0], tagged ? str(L[0], ": ", s[1]) : s[1],
+     q, s[3], s[4], s[5], s[6], s[7], s[8], s[9], s[10], s[11], m[0][3]]];   // [12] = index in UNITS
 
 // ---------- Report (the site parses lines starting with PULLGRID) ----------
 // Per-tier lines start "tier=<n> "; everything else covers the whole build.
@@ -229,7 +271,7 @@ echo(str("PULLGRID tiers=", K));
 for (t = TL) for (l = t[4])
     echo(str("PULLGRID keepout=", l[0], " dodged_by=", ko_option_names[l[1]], " label=", keepout_labels[l[0]], K > 1 ? str(", tier ", t[0]) : ""));
 echo(str("PULLGRID hinges=", len(hinge_keepouts)));
-echo(str("PULLGRID door=", door_mode, " region=", region, " rails=", rail_type, " reach=", REACH));
+echo(str("PULLGRID door=", door_mode, " region=", region, " rails=", rail_type, " reach=", reach_from));
 if (!fits) echo("PULLGRID ERROR no_fit");
 for (t = TL) let(n = t[0], e = t[3], Gt = t[2]) if (!ok(Gt))
     echo(str("PULLGRID tier=", n, " floor=", t[1], " skipped height=", max(0, round(env_h(e)))));
@@ -245,9 +287,11 @@ else {
     echo(str("PULLGRID tier=", n, " boards_y=", chunks(g(Gt, "ny")), " boards_z=", chunks(g(Gt, "nz")),
              " type=", panel_thickness < 5 ? "lite" : "full"));
     if (MOUNT) echo(str("PULLGRID tier=", n, " bracket_mm=", g(Gt, "br_len")));
+    // each pull-out, left to right: which sides you can reach, how many panels
+    for (u = t[5]) echo(str("PULLGRID tier=", n, " pullout=", u[0], " reach=", u[1], " panels=", g(u[2], "panels")));
 }
 if (fits) {
-    GS = [for (t = TV) t[2]];
+    GS = [for (u = UNITS) u[2]];
     stick = M ? 1000 : 1828.8;                                         // M6 x 1 m / 1/4" x 6 ft
     astick = M ? 1000 : 1219.2;                                        // angle: 1 m / 4 ft
     rods = vsum([for (Gt = GS) nrods(Gt)]);
@@ -321,11 +365,11 @@ module tier_parts(Gt, ext) for (x = g(Gt, "xo")) translate([x, 0, 0]) {
 }
 if (fits) {
     // ganged tiers all travel the shared slide length; kept-door tiers each pull their own
-    for (t = TV) translate([0, 0, t[1]]) tier_parts(t[2], -extension * g(t[2], "slide_len"));
+    for (u = UNITS) translate([0, 0, u[5]]) tier_parts(u[2], -extension * g(u[2], "slide_len"));
     if (P == "assembly") translate([0, MOUNT ? -extension * g(TV[0][2], "slide_len") : 0, 0]) color("Tan", 0.6) door_part();
     if (P == "door") door_part();
     if (P == "print" && print_index >= 0 && print_index < len(specs))
-        let(s = specs[print_index]) print_part(TV[s[12]][2], s);
+        let(s = specs[print_index]) print_part(UNITS[s[12]][2], s);
     if (P == "envelope") for (t = TV) let(e = t[3])
         color("SteelBlue", 0.4) translate([e[0], e[4], e[2]]) cube([env_w(e), env_d(e), env_h(e)]);
 }

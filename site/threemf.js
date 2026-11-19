@@ -130,7 +130,8 @@ export const safeName = (s) => String(s).replace(/(\d+)\/(\d+)/g, "$1 of $2").re
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c]);
 const num = (v) => String(Math.round(v * 1e4) / 1e4);
 const family = (label) => label.replace(/ \d+\/\d+$/, "");
-const kindOf = (p) => p.id.replace(/^t[\d-]+_/, "").replace(/_.*$/, "");   // base, front, rail, toprail, bracket, key
+// part type from its id, whatever group prefix it carries (t1-2_, t1p1_, p1_, ...)
+const kindOf = (p) => (p.id.match(/(?:^|_)(toprail|rail|base|front|rear|bracket|key)(?:_|$)/) || [, "other"])[1];
 
 // parts: [{ id, label, qty, stl: Uint8Array }] in report order.
 // Returns { plates: [{ name, items: [{ part, x, y, w, d }] }], files: [{ name, data }] }

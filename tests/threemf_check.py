@@ -57,6 +57,9 @@ for o in cfg.findall("object"):
     check(oid in foot, f"settings for unknown object {oid}")
     keys = {m.get("key"): m.get("value") for m in o.findall("metadata")}
     check(keys.get("wall_loops") in ("4", "5") and keys.get("sparse_infill_density") == "25%", f"object {oid}: print settings")
+    # parts that hold screws get 5 walls (docs/printing.md)
+    holds_screws = any(w in keys.get("name", "") for w in ("Base", "Floor rail"))
+    check(keys.get("wall_loops") == ("5" if holds_screws else "4"), f"object {oid} ({keys.get('name')}): {keys.get('wall_loops')} walls")
     check(o.find("part") is not None and int(o.find("part").get("id")) == oid, f"object {oid}: part id")
 # names Studio would refuse (one popup per plate) or choke on when it builds file names
 BAD = set('<>[]:/\\|?*"&')

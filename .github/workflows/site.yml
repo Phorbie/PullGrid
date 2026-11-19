@@ -21,6 +21,10 @@ jobs:
         run: tests/interference.sh -D 'opening_h=1200' -D 'shelves=[400,800]' -D 'test_tier=1' -D 'rail_type="printed"'
       - name: interference, one-sided tier behind a 90-degree door
         run: tests/interference.sh -D 'door_mode="keep"' -D 'door_opens="only_90"'
+      - name: interference, side-by-side pull-outs, one-sided beside a 90-degree door
+        run: tests/interference.sh -D 'opening_w=480' -D 'door_mode="keep"' -D 'door_opens="only_90"' -D 'test_pullout=2'
+      - name: interference, mounted pair facing outward
+        run: tests/interference.sh -D 'opening_w=480' -D 'test_pullout=2'
       - run: tests/print_parts.sh
       - name: print parts, stacked tiers
         run: tests/print_parts.sh -D 'opening_h=900' -D 'shelves=[400]' -D 'rail_type="printed"'

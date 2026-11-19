@@ -152,3 +152,8 @@ table.parts button:hover { border-color: var(--ink); }
 #boards { font-size: 13px; }
 #boards .bgrid { display: inline-grid; gap: 3px; margin: 6px 0; vertical-align: top; }
 #boards .bgrid span { background: #e4e0d6; border: 1px solid #a9a397; border-radius: 3px; font: 10px var(--mono); display: flex; align-items: center; justify-content: center; color: var(--muted); }
+
+.sides .srow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 6px 0; }
+.sides .srow b { font-weight: 500; font-size: 13px; min-width: 104px; }
+.sides .srow .seg { flex: 0 1 auto; }
+.sides .srow small { width: 100%; margin: 0; }

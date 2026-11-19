@@ -30,7 +30,7 @@ module P_(n) {
     if (n[0] == "w" && n[1] == "_") W_(n);
 }
 // every tier in cabinet coordinates
-module W_(n) for (t = TV) let(Gt = t[2]) translate([0, n == "w_carriage_out" ? -g(Gt, "slide_len") : 0, t[1]])
+module W_(n) for (u = UNITS) let(Gt = u[2]) translate([0, n == "w_carriage_out" ? -g(Gt, "slide_len") : 0, u[5]])
     for (x = g(Gt, "xo")) translate([x, 0, 0]) {
         if (n == "w_rails") { if (g(Gt, "angle")) angle_part(Gt); else { rail_full(Gt, "L"); rail_full(Gt, "R"); } }
         if (n == "w_carriage" || n == "w_carriage_out") carriage_part(Gt);

@@ -72,4 +72,4 @@ Clip the pull-out back onto the slides and push it home. If your door stays hing
 - **Pull-out racks or wobbles**: tighten the tie rods a little, and check the rails are parallel.
 - **One tier sits back from the door** (stacked tiers): put flat washers between that tier's brackets and the plate until the bracket touches the door.
 
-Now snap openGrid hooks, bins and shelves onto both sides of each panel, or onto the open side if your tiers are [one-sided](door-mount.md#when-the-door-only-opens-to-90).
+Now snap openGrid hooks, bins and shelves onto both sides of each panel, or onto the open side of any [one-sided](door-mount.md#choosing-sides-for-each-pull-out) pull-out.

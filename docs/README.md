@@ -9,7 +9,7 @@ PullGrid turns a deep cabinet into a pull-out. You enter your cabinet's measurem
 ## Start here
 
 1. **[Measure your cabinet](measuring.md)**: three numbers for most cabinets, five minutes with a tape measure. Plus one per [fixed shelf](measuring.md#fixed-shelves), if you have any.
-2. **[Decide about your door](door-mount.md)**: mount it on the pull-out (recommended) or keep it hinged. Keeping a door that [only opens to 90°](door-mount.md#when-the-door-only-opens-to-90)? The generator makes one-sided tiers.
+2. **[Decide about your door](door-mount.md)**: mount it on the pull-out (recommended) or keep it hinged. Keeping a door that [only opens to 90°](door-mount.md#when-the-door-only-opens-to-90)? The pull-out next to it goes one-sided, and you can [choose sides](door-mount.md#choosing-sides-for-each-pull-out) for each pull-out.
 3. **Run the [generator](https://phorbie.github.io/PullGrid/)** and download the parts zip.
 4. **[Buy the hardware](hardware.md)**: slides, aluminum angle, threaded rod, screws. Found in any big-box store in the US, Canada, UK, Ireland, Australia and New Zealand.
 5. **[Print](printing.md)** the parts and the openGrid boards.

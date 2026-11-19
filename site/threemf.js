@@ -134,19 +134,18 @@ const family = (label) => label.replace(/ \d+\/\d+$/, "");
 const kindOf = (p) => (p.id.match(/(?:^|_)(toprail|rail|base|front|rear|bracket|handle|key)(?:_|$)/) || [, "other"])[1];
 
 // parts: [{ id, label, qty, stl: Uint8Array }] in report order.
-// Returns { plates: [{ name, items: [{ part, x, y, w, d }] }], files: [{ name, data }] }
-export function layout3mf(parts, printer) {
+// Returns { P, meshes, plates: [{ name, items: [{ part, x, y, w, d }] }] }
+export function layout3mf(parts, printer, { test: withTest = true, meshes = parts.map((p) => indexMesh(parseStl(p.stl))) } = {}) {
   const P = PRINTERS.find((p) => p.id === printer) || PRINTERS[2];
-  const meshes = parts.map((p) => indexMesh(parseStl(p.stl)));
   const item = (i) => ({ part: i, w: meshes[i].size[0], d: meshes[i].size[1] });
   const plates = [];
   // plate 1: the test piece from docs/printing.md
-  const test = parts.findIndex((p) => /(^|_)base_1$/.test(p.id));
+  const test = withTest ? parts.findIndex((p) => p.qty > 0 && /(^|_)base_1$/.test(p.id)) : -1;
   if (test >= 0) plates.push({ name: "TEST FIRST · one base piece", items: packPlates([item(test)], P.bed, P.excl)[0] });
   // then one family per plate (or several), small parts together at the end
   const groups = new Map();
   // "Brackets and keys", "Handles and keys", ...: whichever small parts this build has
-  const small = ["bracket", "handle", "key"].filter((k) => parts.some((p) => kindOf(p) === k))
+  const small = ["bracket", "handle", "key"].filter((k) => parts.some((p) => p.qty > 0 && kindOf(p) === k))
     .map((k) => ({ bracket: "brackets", handle: "handles", key: "keys" })[k]);
   const smallName = small.length ? (small.length > 1 ? `${small.slice(0, -1).join(", ")} and ${small.at(-1)}` : small[0]).replace(/^./, (c) => c.toUpperCase()) : "";
   parts.forEach((p, i) => {
@@ -158,30 +157,42 @@ export function layout3mf(parts, printer) {
   for (const [k, items] of groups) {
     if (!items.length) continue;
     const packed = packPlates(items, P.bed, P.excl);
-    const walls = new Set(items.map((it) => settings(kindOf(parts[it.part])).wall_loops));
-    // one piece: its own name ("Base 2/3"); several: the family and a count
+    // one piece: its own name ("Base 2/3"); several: the family and a count.
+    // Walls and infill are set per object, so the names don't repeat them.
     packed.forEach((pl, j) => plates.push({
-      name: safeName(`${pl.length === 1 ? parts[pl[0].part].label : `${k} ×${pl.length}${packed.length > 1 ? ` (${j + 1} of ${packed.length})` : ""}`}` +
-            ` · ${[...walls].join("-")} walls`),
+      name: safeName(pl.length === 1 ? parts[pl[0].part].label : `${k} ×${pl.length}${packed.length > 1 ? ` (${j + 1} of ${packed.length})` : ""}`),
       items: pl,
     }));
   }
   return { P, meshes, plates };
 }
 
-// One project file per MAX_PLATES plates. Returns { files: [{ name, bytes, plates }], printer }.
+// One project file per tier when the parts say which tiers use them (p.tiers:
+// [[tier, qty], ...]), otherwise one for the lot; a file past MAX_PLATES plates
+// splits. The test piece goes in the first file only.
+// Returns { files: [{ name, bytes, plates, tier }], printer }.
 export async function build3mf(parts, { printer, title = "PullGrid", description = "", base = "pullgrid" } = {}) {
-  const { P, meshes, plates } = layout3mf(parts, printer);
-  const chunks = [];
-  for (let i = 0; i < plates.length; i += MAX_PLATES) chunks.push(plates.slice(i, i + MAX_PLATES));
+  const meshes = parts.map((p) => indexMesh(parseStl(p.stl)));
+  const tiers = [...new Set(parts.flatMap((p) => (p.tiers || []).map((t) => t[0])))].sort((a, b) => a - b);
+  const sets = tiers.length > 1
+    ? tiers.map((t) => ({ tier: t, parts: parts.map((p) => ({ ...p, qty: p.tiers?.find((x) => x[0] === t)?.[1] || 0 })) }))
+    : [{ tier: null, parts }];
+  let P = null;
   const files = [];
-  for (const [n, chunk] of chunks.entries()) {
-    const multi = chunks.length > 1, first = n * MAX_PLATES + 1;
-    files.push({
-      name: multi ? `${base}-plates-${first}-${first + chunk.length - 1}.3mf` : `${base}.3mf`,
-      bytes: await project(parts, meshes, chunk, P, multi ? `${title} (${n + 1} of ${chunks.length})` : title, description),
-      plates: chunk,
-    });
+  for (const [si, set] of sets.entries()) {
+    const lay = layout3mf(set.parts, printer, { test: si === 0, meshes });
+    P = lay.P;
+    const chunks = [];
+    for (let i = 0; i < lay.plates.length; i += MAX_PLATES) chunks.push(lay.plates.slice(i, i + MAX_PLATES));
+    const stem = set.tier == null ? base : `${base}-tier${set.tier}`, head = set.tier == null ? title : `${title}, tier ${set.tier}`;
+    for (const [n, chunk] of chunks.entries()) {
+      const multi = chunks.length > 1, first = n * MAX_PLATES + 1;
+      files.push({
+        name: multi ? `${stem}-plates-${first}-${first + chunk.length - 1}.3mf` : `${stem}.3mf`,
+        bytes: await project(set.parts, meshes, chunk, P, multi ? `${head} (${n + 1} of ${chunks.length})` : head, description),
+        plates: chunk, tier: set.tier,
+      });
+    }
   }
   return { files, printer: P };
 }

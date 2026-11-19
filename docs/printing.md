@@ -7,13 +7,13 @@ The generator's zip contains every part as an STL, already oriented for printing
 Pick your printer next to the download buttons, then download **Bambu Studio project (.3mf)** (it's in the zip too). Open it and everything is set up:
 
 - **Plate 1 is the test piece**: one base piece on its own. Print it and [test-fit it](#test-print-first) before the rest.
-- Every other part is laid out on plates, grouped by part, with copies already made. Plate names say what's on them and how many walls: *Front plate 2 of 3 · 4 walls*.
+- Every other part is laid out on plates, grouped by part, with copies already made. Plate names say what's on them: *Front plate 2 of 3*, *Brackets and keys ×14*.
 - Walls and infill are set **per part** (5 walls on parts that hold screws, 4 elsewhere, 25% gyroid), so they survive a change of process preset.
 - Parts stay clear of the front-left calibration corner on P1 and X1 printers.
 
 The project starts on Bambu's own **0.20mm Standard** process and **Generic PETG**. Pick your actual filament (or let the AMS sync it) before slicing. If your printer model isn't in the list, pick the closest and switch printers in Studio: the plates and per-part settings carry over.
 
-Bambu Studio holds at most 36 plates per project. Bigger builds (several tiers) come as two or more project files, numbered by plate.
+With fixed shelves you get **one project per tier** (*…-tier1.3mf*, *…-tier2.3mf*), each with exactly the parts that tier needs, so you can print and fit one tier at a time. The test piece is on plate 1 of the first. Bambu Studio holds at most 36 plates per project, so a tier that needs more comes as two files.
 
 Other slicers: use the STLs. Settings are in the table below.
 

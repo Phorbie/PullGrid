@@ -279,6 +279,9 @@ specs = [for (sg = uniq(SIGS)) let(m = [for (a = ALL) if (a[0] == sg) a], s = m[
                                    q = s[0] == "key" ? vsum([for (a = m) a[1][2] - 2]) + 2 : vsum([for (a = m) a[1][2]]))
     [tagged ? str(L[1], "_", s[0]) : s[0], tagged ? str(L[0], ": ", s[1]) : s[1],
      q, s[3], s[4], s[5], s[6], s[7], s[8], s[9], s[10], s[11], m[0][3]]];   // [12] = index in UNITS
+// how many of each spec every tier needs: [[tier, qty], ...]; the two spare keys go with the lowest tier
+SPEC_TIERS = [for (sg = uniq(SIGS)) let(m = [for (a = ALL) if (a[0] == sg) a], key = m[0][1][0] == "key", ts = uniq([for (a = m) a[2]]))
+    [for (t = ts) [t, vsum([for (a = m) if (a[2] == t) a[1][2] - (key ? 2 : 0)]) + (key && t == min(ts) ? 2 : 0)]]];
 
 // ---------- Report (the site parses lines starting with PULLGRID) ----------
 // Per-tier lines start "tier=<n> "; everything else covers the whole build.
@@ -328,6 +331,8 @@ if (fits) {
         echo(str("PULLGRID cut=", vsum([for (Gt = GS) if (g(Gt, "rail_len") == al) 2 * g(Gt, "N")]), " len=", al, " item=aluminum angle rail"));
     for (i = seq(len(specs))) let(s = specs[i], sz = print_size(s))
         echo(str("PULLGRID part=", i, " id=", s[0], " qty=", s[2], " size=", sz, " label=", s[1]));
+    // per tier, so the Bambu projects can come as one file per tier
+    if (K > 1) for (i = seq(len(specs))) echo(str("PULLGRID part_tiers=", i, " qty=", SPEC_TIERS[i]));
     // shopping list, in the names each market uses
     for (sl = SLS) let(n = vsum([for (Gt = GS) if (g(Gt, "slide_len") == sl) g(Gt, "N")]))
         echo(str("PULLGRID hw=", n, " item=", M

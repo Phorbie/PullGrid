@@ -6,6 +6,7 @@ printer=${1:-p1s}; shift
 T=$(mktemp -d)
 openscad -o "$T/x.echo" -D 'part="none"' "$@" scad/pullgrid.scad >/dev/null 2>&1
 grep -o 'PULLGRID part=[^"]*' "$T/x.echo" | sed 's/^PULLGRID //' > "$T/parts.txt"
+grep -o 'PULLGRID part_tiers=[^"]*' "$T/x.echo" | sed 's/^PULLGRID //' > "$T/tiers.txt"   # stacked tiers: one file each
 while read -r line; do
   i=$(echo "$line" | sed 's/part=\([0-9]*\).*/\1/')
   openscad -o "$T/$i.stl" -D 'part="print"' -D "print_index=$i" "$@" scad/pullgrid.scad >/dev/null 2>&1 &

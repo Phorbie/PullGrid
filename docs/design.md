@@ -32,7 +32,7 @@ The code targets **OpenSCAD 2021.01**, because MakerWorld's customizer lags behi
 - `Application` metadata starting `BambuStudio-`. We claim 2.0.0, so any 2.x app loads it without a "newer file" prompt.
 - A project config that only **names** Bambu's system presets and marks nothing as changed. Studio fills every value from its own presets.
 - Plates in `model_settings.config`, with each instance placed inside its plate on Studio's grid (plates are rebuilt from position). Per-object `wall_loops` and infill.
-- At most 36 plates per file.
+- At most 36 plates per file. Stacked tiers get one file each, from the `part_tiers` report lines; a file past 36 plates splits.
 
 The carriage splits wide pieces short enough to sit above the 18 × 28 mm calibration corner on P1 and X1 beds (`SPLIT_MAX` in `carriage_geometry()`), so the layout never has to put a part there.
 
@@ -53,6 +53,7 @@ PULLGRID tier=2 floor=400 envelope_mm=[274, 550, 222]
 PULLGRID tier=3 floor=640 skipped height=40
 PULLGRID part=0 id=base_1 qty=2 size=[241.6, 177.5, 45] label=Base 1/3
 PULLGRID part=3 id=t1_front_1 qty=1 size=[241.6, 177.3, 16] label=Tier 1: Front plate 1/2
+PULLGRID part_tiers=0 qty=[[1, 1], [2, 1]]
 PULLGRID hw=2 item=1/4in-20 threaded rod, 6 ft
 PULLGRID cut=6 len=561 item=tie rod
 PULLGRID WARNING tier_skipped

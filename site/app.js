@@ -368,6 +368,7 @@ function parseReport(log) {
     else if ((x = t.match(/^tiers=(\d+)/))) r.nTiers = +x[1];
     else if ((x = t.match(/^part=(\d+) id=(\S+) qty=(\d+) size=\[([^\]]+)\] label=(.*)$/)))
       r.parts.push({ index: +x[1], id: x[2], qty: +x[3], size: x[4].split(",").map(Number), label: x[5] });
+    else if ((x = t.match(/^part_tiers=(\d+) qty=\[(.*)\]$/))) (r.partTiers ||= {})[x[1]] = JSON.parse(`[${x[2]}]`);
     else if ((x = t.match(/^hw=(\d+) item=(.*)$/))) r.hw.push({ qty: +x[1], item: x[2] });
     else if ((x = t.match(/^cut=(\d+) len=([\d.]+) item=(.*)$/))) r.cuts.push({ qty: +x[1], len: +x[2], item: x[3] });
     else if ((x = t.match(/^door=(\w+) region=(\w+) rails=(\w+)(?: reach=(\w+))?/)))
@@ -608,7 +609,7 @@ const printerId = () => state.printer && printersForBed(state.bed_size).some((p)
   : state.printer === "none" ? "none" : defaultPrinter(state.bed_size);
 async function projectFiles(out) {
   if (printerId() === "none") return [];
-  const parts = report.parts.map((p) => ({ ...p, stl: out[`print:${p.index}`].stl }));
+  const parts = report.parts.map((p) => ({ ...p, tiers: report.partTiers?.[p.index], stl: out[`print:${p.index}`].stl }));
   const { files } = await build3mf(parts, {
     printer: printerId(), base: slug(),
     title: `PullGrid ${report.carriage.map((v) => Math.round(v)).join(" x ")} mm`,
@@ -656,7 +657,9 @@ $("#download3mf").onclick = async () => {
     if (files.length === 1) save(new Blob([files[0].bytes], { type: "model/3mf" }), files[0].name);
     else save(new Blob([await zipBytes(files.map((f) => ({ name: f.name, data: f.bytes })), { compress: false })], { type: "application/zip" }), `${slug()}-bambu.zip`);
     const n = files.reduce((a, f) => a + f.plates.length, 0);
+    const perTier = files.some((f) => f.tier);
     st.textContent = files.length === 1 ? `Bambu Studio project: ${n} plates. Print plate 1 first.`
+      : perTier ? `${n} plates: one project per tier. Print plate 1 of ${files[0].name} first.`
       : `${n} plates in ${files.length} projects (Bambu Studio allows 36 per project). Print plate 1 of the first one first.`;
   } catch (err) {
     st.textContent = `Download failed: ${err.message}`;
@@ -676,8 +679,10 @@ function readme(projects = []) {
     "",
     ...(projects.length ? [
       "BAMBU STUDIO / ORCASLICER",
-      `Open ${projects.map((f) => f.name).join(", then ")}: every part is laid out on plates with walls and infill set per part.`,
-      "Print plate 1 (one base piece) first and test-fit it: https://phorbie.github.io/PullGrid/docs/printing.html#test-print-first",
+      projects.some((f) => f.tier)
+        ? `One project per tier: ${projects.map((f) => f.name).join(", ")}. Every part is laid out on plates with walls and infill set per part.`
+        : `Open ${projects.map((f) => f.name).join(", then ")}: every part is laid out on plates with walls and infill set per part.`,
+      `Print plate 1 of ${projects[0].name} (one base piece) first and test-fit it: https://phorbie.github.io/PullGrid/docs/printing.html#test-print-first`,
       "Your printer isn't the one in the file? Pick yours in the printer list; the plates and per-part settings carry over.",
       ""] : []),
     "PRINT (quantity is in each file name, e.g. -x2)",

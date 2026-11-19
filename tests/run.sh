@@ -75,6 +75,8 @@ run gang_setback    "tier=1 rails_mm=.13. front=46" -D 'opening_h=900' -D 'shelv
 run printed_tiers   "Tier 1: Floor rail"  -D 'opening_h=900' -D 'shelves=[400]' -D 'rail_type="printed"'
 # wide pieces stay short enough to sit above the P1/X1 calibration corner
 run corner_split    "Tier 2: Front plate 3/3" -D 'opening_h=900' -D 'shelves=[400]'
+# per-tier quantities (one Bambu project per tier); the spare keys go with tier 1
+run part_tiers      "part_tiers=0 qty=..1, 1., .2, 1.." -D 'opening_h=900' -D 'shelves=[400]'
 # one-sided tiers
 run reach_auto      "reach=right"         -D 'door_mode="keep"' -D 'door_opens="only_90"'
 run reach_auto_r    "reach=left"          -D 'door_mode="keep"' -D 'door_opens="only_90"' -D 'hinge_side="right"'

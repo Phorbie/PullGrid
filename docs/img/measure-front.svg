@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 430" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="13">
+  <title>Front view of a face-frame cabinet: where to measure</title>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9" fill="none" stroke="#d9541e" stroke-width="1.6"/></marker></defs>
+  <rect width="720" height="430" fill="#fbfaf6"/>
+  <!-- cabinet box walls behind the frame -->
+  <rect x="80" y="40" width="320" height="340" fill="none" stroke="#a9a397" stroke-dasharray="5 4"/>
+  <text x="84" y="34" fill="#6c675c">cabinet walls (behind the frame)</text>
+  <!-- face frame -->
+  <path d="M70 50h340v330h-340z M108 92v260h264v-260z" fill="#e6d3b3" stroke="#8a6d48" fill-rule="evenodd"/>
+  <rect x="108" y="92" width="264" height="260" fill="#fff" stroke="#8a6d48"/>
+  <!-- A -->
+  <line x1="110" y1="140" x2="370" y2="140" stroke="#d9541e" stroke-width="1.6" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="240" y="132" text-anchor="middle" fill="#d9541e" font-weight="600">A · opening width</text>
+  <!-- B -->
+  <line x1="330" y1="94" x2="330" y2="350" stroke="#d9541e" stroke-width="1.6" marker-start="url(#a)" marker-end="url(#a)"/>
+  <text x="322" y="230" text-anchor="end" fill="#d9541e" font-weight="600">B · opening height</text>
+  <!-- stile overhang -->
+  <line x1="80" y1="250" x2="108" y2="250" stroke="#1f1e1b" stroke-width="1.2" marker-start="url(#a)" marker-end="url(#a)"/>
+  <!-- bottom rail -->
+  <line x1="200" y1="352" x2="200" y2="380" stroke="#1f1e1b" stroke-width="1.2" marker-start="url(#a)" marker-end="url(#a)"/>
+  <!-- callouts -->
+  <g fill="#1f1e1b">
+    <line x1="94" y1="262" x2="94" y2="300" stroke="#a9a397"/><line x1="94" y1="300" x2="440" y2="300" stroke="#a9a397"/>
+    <text x="446" y="296" font-weight="600">Frame overhang</text>
+    <text x="446" y="313" fill="#6c675c">how far the frame sticks in past</text>
+    <text x="446" y="329" fill="#6c675c">the cabinet wall (each side)</text>
+    <line x1="212" y1="368" x2="440" y2="368" stroke="#a9a397"/>
+    <text x="446" y="364" font-weight="600">Bottom rail height</text>
+    <text x="446" y="381" fill="#6c675c">from the cabinet floor to the</text>
+    <text x="446" y="397" fill="#6c675c">top of the frame's bottom rail</text>
+    <text x="446" y="130" font-weight="600">Measure A and B at the</text>
+    <text x="446" y="147" font-weight="600">narrowest point.</text>
+    <text x="446" y="168" fill="#6c675c">Frameless cabinet? The opening</text>
+    <text x="446" y="184" fill="#6c675c">is the whole box, and overhang</text>
+    <text x="446" y="200" fill="#6c675c">and rail height are 0.</text>
+  </g>
+</svg>

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 500" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="13">
+  <title>Top view: a door that opens to 90 degrees blocks the hinge side of a pull-out</title>
+  <defs><pattern id="h" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="#D85A30" stroke-width="1.2" opacity="0.6"/></pattern></defs>
+  <rect width="680" height="500" fill="#fbfaf6"/>
+  <rect x="180" y="40" width="150" height="220" fill="none" stroke="#a9a397"/>
+  <text x="255" y="62" text-anchor="middle" fill="#6c675c">cabinet (top view)</text>
+  <line x1="190" y1="260" x2="320" y2="260" stroke="#1f1e1b" stroke-width="3"/>
+  <rect x="205" y="246" width="100" height="214" rx="3" fill="#e1f5ee" stroke="#0f6e56"/>
+  <line x1="255" y1="252" x2="255" y2="454" stroke="#085041" stroke-width="3"/>
+  <rect x="190" y="260" width="8" height="120" rx="1" fill="#5f5e5a"/>
+  <rect x="198" y="260" width="57" height="120" fill="url(#h)"/>
+  <rect x="198" y="260" width="57" height="120" fill="none" stroke="#D85A30" stroke-dasharray="4 3"/>
+  <circle cx="194" cy="260" r="3" fill="#1f1e1b"/>
+  <g fill="#1f1e1b">
+    <line x1="190" y1="330" x2="150" y2="330" stroke="#a9a397"/>
+    <text x="146" y="326" text-anchor="end">door at 90°</text>
+    <line x1="255" y1="250" x2="370" y2="150" stroke="#a9a397"/>
+    <text x="376" y="146" font-weight="600">openGrid panel</text>
+    <text x="376" y="163" fill="#6c675c">both faces usable</text>
+    <line x1="226" y1="300" x2="370" y2="250" stroke="#a9a397"/>
+    <text x="376" y="246" font-weight="600" fill="#993c1d">blocked from the side</text>
+    <text x="376" y="263" fill="#6c675c">about half of the hinge-side face,</text>
+    <text x="376" y="279" fill="#6c675c">reachable only through a narrow slot</text>
+    <line x1="230" y1="420" x2="370" y2="360" stroke="#a9a397"/>
+    <text x="376" y="356" font-weight="600">open again past the door's edge</text>
+    <line x1="290" y1="350" x2="370" y2="430" stroke="#a9a397"/>
+    <text x="376" y="426" font-weight="600">fully open on the other side</text>
+    <text x="255" y="486" text-anchor="middle" fill="#6c675c">pull-out at full extension</text>
+  </g>
+</svg>

@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PullGrid — pull-out generator for deep cabinets</title>
+  <meta name="description" content="Generate a 3D-printable vertical pull-out sized to your cabinet, with openGrid panels. Free, by Phorbie Designs.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 34%22%3E%3Crect width=%2234%22 height=%2234%22 rx=%227%22 fill=%22%231f1e1b%22/%3E%3Cpath d=%22M9 6v22M17 6v22M25 6v22%22 stroke=%22%23f3f0e8%22 stroke-width=%224%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.js" } }</script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="logo" aria-hidden="true"></span>
+      <div>
+        <h1>PullGrid</h1>
+        <p class="tag">Pull-outs for deep cabinets, sized to yours. openGrid inside.</p>
+      </div>
+    </div>
+    <nav class="topnav">
+      <a href="docs/">Docs</a>
+      <a href="https://github.com/Phorbie/PullGrid">GitHub</a>
+      <div class="units" role="group" aria-label="Units">
+        <button type="button" data-unit="in" class="on">in</button>
+        <button type="button" data-unit="mm">mm</button>
+      </div>
+    </nav>
+  </header>
+
+  <div class="banner">Beta: not yet proven in a real cabinet. Print one base piece and dry-fit your slides before printing everything. <a href="docs/printing.html#test-print-first">How</a></div>
+
+  <main class="layout">
+    <form id="form" class="panel" autocomplete="off" novalidate>
+      <section>
+        <h2>Your cabinet <a class="help" href="docs/measuring.html">How to measure</a></h2>
+        <svg class="measure" viewBox="0 0 300 156" role="img" aria-label="Where to measure opening width, opening height and interior depth">
+          <rect x="20" y="20" width="120" height="110" class="box"/>
+          <rect x="32" y="28" width="96" height="94" class="hole"/>
+          <line x1="32" y1="138" x2="128" y2="138" class="dim"/><text x="80" y="149">A · opening width</text>
+          <line x1="12" y1="28" x2="12" y2="122" class="dim"/><text x="8" y="16" class="l">B · height</text>
+          <path d="M175 40 h90 v80 h-90 z M175 40 l12 -14 h90 l-12 14 M265 120 l12 -14 v-80" class="box"/>
+          <line x1="175" y1="132" x2="265" y2="132" class="dim"/><text x="220" y="146">C · depth</text>
+        </svg>
+
+        <label class="field">
+          <span>A · Opening width</span>
+          <input data-key="opening_w" data-kind="len" inputmode="decimal">
+          <small>Narrowest clear width, inside edge to inside edge.</small>
+        </label>
+        <label class="field">
+          <span>B · Opening height</span>
+          <input data-key="opening_h" data-kind="len" inputmode="decimal">
+          <small>Clear height, bottom rail to top rail.</small>
+        </label>
+        <label class="field">
+          <span>C · Interior depth</span>
+          <input data-key="interior_depth" data-kind="len" inputmode="decimal">
+          <small>Front opening to back wall, measured at the floor.</small>
+        </label>
+
+        <div class="field">
+          <span>Cabinet type</span>
+          <div class="seg" data-key="frame_type">
+            <button type="button" data-v="face_frame">Face frame</button>
+            <button type="button" data-v="frameless">Frameless</button>
+          </div>
+          <small>Face frame: a wood frame narrower than the box around the opening. Frameless: the opening is the whole box.</small>
+        </div>
+
+        <div class="field">
+          <span>Fixed shelves <a class="help" href="docs/measuring.html#fixed-shelves">How</a></span>
+          <div class="rows" id="shelves"></div>
+          <button type="button" class="ghost" id="add-shelf">+ Add shelf</button>
+          <small>Shelves that don't come out. Measure from the cabinet floor to the top of each one. Every gap gets its own pull-out (a tier).</small>
+        </div>
+      </section>
+
+      <section>
+        <h2>Your door <a class="help" href="docs/door-mount.html">Why mount it?</a></h2>
+        <div class="field">
+          <div class="seg" data-key="door_mode">
+            <button type="button" data-v="mount" title="Mount the door on the pull-out">Mount it</button>
+            <button type="button" data-v="keep">Keep it hinged</button>
+            <button type="button" data-v="none">No door</button>
+          </div>
+          <small data-show="door_mode=mount">The door comes off its hinges and becomes the pull-out's front, so nothing blocks the sides. With shelves, every tier rides on the door and they pull out together.</small>
+          <small data-show="door_mode=keep">Open the door first. With fixed shelves, each tier pulls out on its own.</small>
+          <small data-show="door_mode=none">No door, or it's already off and staying off. The front plate is the face: pick its handles below.</small>
+        </div>
+        <div class="field" data-show="door_mode=keep">
+          <span>How far does the door open?</span>
+          <div class="seg" data-key="door_opens">
+            <button type="button" data-v="past_90">Past 90°</button>
+            <button type="button" data-v="only_90">Only to 90°</button>
+          </div>
+          <small data-show="door_opens=only_90">The open door covers the hinge side of a pulled-out tier, so the panel goes on that side and everything faces you.</small>
+        </div>
+        <label class="field" data-show="door_mode=mount">
+          <span>Door thickness</span>
+          <input data-key="door_thickness" data-kind="len" inputmode="decimal">
+        </label>
+        <div data-show="door_mode=keep|none">
+          <div class="field">
+            <span>Front handles</span>
+            <div class="seg tight" data-key="handle">
+              <button type="button" data-v="slot">Slot</button>
+              <button type="button" data-v="bar">Bar</button>
+              <button type="button" data-v="arch">Arch</button>
+              <button type="button" data-v="knob">Knob</button>
+              <button type="button" data-v="pull" title="A store-bought cabinet pull">Pull</button>
+              <button type="button" data-v="none">None</button>
+            </div>
+            <small data-show="handle=slot">Finger slots cut through the front plate.</small>
+            <small data-show="handle=bar|arch|knob">Printed, and screwed on from inside the front plate.</small>
+            <small data-show="handle=pull">Any store-bought cabinet pull. Its own screws are too long for the plate, so the shopping list adds short ones.</small>
+            <small data-show="door_mode=keep">Handles stick out, so the pull-out sits back far enough for the door to close over them.</small>
+          </div>
+          <div class="handle-opts" data-show="handle=slot|bar|arch|knob|pull">
+            <div class="field" data-show="handle=slot|bar|arch|pull">
+              <span>Direction</span>
+              <div class="seg" data-key="handle_dir">
+                <button type="button" data-v="horizontal">Horizontal</button>
+                <button type="button" data-v="vertical">Vertical</button>
+              </div>
+            </div>
+            <div class="field">
+              <span>Height</span>
+              <div class="seg" data-key="handle_pos">
+                <button type="button" data-v="top">Top</button>
+                <button type="button" data-v="middle">Middle</button>
+                <button type="button" data-v="bottom">Bottom</button>
+              </div>
+            </div>
+            <div class="field">
+              <span>Per pull-out</span>
+              <div class="seg" data-key="handle_count">
+                <button type="button" data-v="auto">Auto</button>
+                <button type="button" data-v="1">1</button>
+                <button type="button" data-v="2">2</button>
+              </div>
+              <small data-show="handle_count=auto">One in the middle, or one each side when a board runs down the middle.</small>
+              <small data-show="handle_count=2">Side by side (vertical ones go near each edge).</small>
+            </div>
+            <div class="field" data-show="handle_count=auto|1">
+              <span>Across</span>
+              <div class="seg" data-key="handle_across">
+                <button type="button" data-v="left">Left</button>
+                <button type="button" data-v="center">Middle</button>
+                <button type="button" data-v="right">Right</button>
+              </div>
+            </div>
+            <label class="field">
+              <span data-show="handle=slot">Slot length</span>
+              <span data-show="handle=bar|arch">Screw spacing</span>
+              <span data-show="handle=pull">Pull hole spacing</span>
+              <span data-show="handle=knob">Knob diameter</span>
+              <input data-key="handle_size" data-kind="len" data-auto inputmode="decimal">
+              <small data-show="handle=pull">Center to center. 96 mm (3¾″) and 128 mm (5″) pulls are stocked everywhere.</small>
+            </label>
+          </div>
+        </div>
+        <div class="field" data-show="door_mode=keep">
+          <span>Hinge side</span>
+          <div class="seg" data-key="hinge_side">
+            <button type="button" data-v="left">Left</button>
+            <button type="button" data-v="right">Right</button>
+            <button type="button" data-v="none">None</button>
+          </div>
+        </div>
+      </section>
+
+      <details>
+        <summary>Advanced: offsets &amp; odd shapes</summary>
+        <p class="hint">Leave blank for auto. Fractions work: <code>11 3/4</code>. Add <code>mm</code> or <code>"</code> to override units.</p>
+        <div class="grid2">
+          <label class="field"><span>Frame overhang left</span><input data-key="offset_left" data-kind="len" data-auto inputmode="decimal"></label>
+          <label class="field"><span>Frame overhang right</span><input data-key="offset_right" data-kind="len" data-auto inputmode="decimal"></label>
+          <label class="field"><span>Bottom rail height</span><input data-key="offset_bottom" data-kind="len" data-auto inputmode="decimal"></label>
+          <label class="field"><span>Top rail drop</span><input data-key="offset_top" data-kind="len" data-auto inputmode="decimal"></label>
+          <label class="field"><span>Rear interior width</span><input data-key="rear_w" data-kind="len" data-auto="same as front" inputmode="decimal"></label>
+          <label class="field"><span>Rear interior height</span><input data-key="rear_h" data-kind="len" data-auto="same as front" inputmode="decimal"></label>
+        </div>
+        <div class="grid2">
+          <label class="field"><span>Face frame depth</span><input data-key="face_frame_thickness" data-kind="len" data-auto inputmode="decimal"><small>Front to back.</small></label>
+          <label class="field"><span>Door overlay</span><input data-key="door_overlay" data-kind="len" inputmode="decimal"><small>Per side, for the preview.</small></label>
+        </div>
+        <div class="grid2">
+          <label class="field"><span>Shelf thickness</span><input data-key="shelf_thickness" data-kind="len" inputmode="decimal"></label>
+          <label class="field"><span>Shelf setback</span><input data-key="shelf_setback" data-kind="len" inputmode="decimal"><small>Shelf front edge behind the opening.</small></label>
+        </div>
+        <label class="field" data-show="door_mode=keep"><span>Door swing intrusion</span><input data-key="door_intrusion" data-kind="len" inputmode="decimal">
+          <small>If the door can't open past 90°, how far it sticks into the opening.</small></label>
+
+        <div data-show="door_mode=keep">
+          <h3>Hinges</h3>
+          <p class="hint" id="hinge-hint">Blank = auto.</p>
+          <div class="rows" id="hinges"></div>
+          <button type="button" class="ghost" id="add-hinge">+ Add hinge</button>
+        </div>
+      </details>
+
+      <details>
+        <summary>Expert: keep-outs</summary>
+        <p class="hint">Pipes, the disposal, anything in the way. Position from the interior's front-left floor corner: X across, Y into the cabinet, Z up.</p>
+        <div class="rows" id="keepouts"></div>
+        <button type="button" class="ghost" id="add-keepout">+ Add keep-out</button>
+      </details>
+
+      <section>
+        <h2>Your pull-out</h2>
+        <div class="grid2">
+          <label class="field"><span>openGrid panels</span><input data-key="panel_count" data-kind="int" data-min="1" data-max="4" inputmode="numeric">
+            <small>Per pull-out, running front to back.</small></label>
+          <div class="field">
+            <span>Board type</span>
+            <div class="seg" data-key="panel_thickness">
+              <button type="button" data-v="6.8">Full</button>
+              <button type="button" data-v="4.0">Lite</button>
+            </div>
+            <small>Full is double-sided.</small>
+          </div>
+          <label class="field"><span>Pull-outs</span><input data-key="pullouts" data-kind="int" data-min="1" data-max="6" data-auto inputmode="numeric">
+            <small>Side by side. Auto fits your bed.</small></label>
+          <div class="field">
+            <span>Print bed</span>
+            <div class="seg" data-key="bed_size">
+              <button type="button" data-v="180">180</button>
+              <button type="button" data-v="256">256</button>
+              <button type="button" data-v="325">325</button>
+            </div>
+            <small>mm. A1 mini / A1, P1, X1 / H2D.</small>
+          </div>
+        </div>
+        <div class="field">
+          <span>Sides <a class="help" href="docs/door-mount.html#when-the-door-only-opens-to-90">Why</a></span>
+          <div id="sides" class="sides"><small>Shows up after the first preview.</small></div>
+          <small>Which sides of each pull-out you can reach. One side: a single panel against the blocked side, every accessory facing you, and Lite boards are enough.</small>
+        </div>
+      </section>
+
+      <section>
+        <h2>Your hardware <a class="help" href="docs/hardware.html">Shopping guide</a></h2>
+        <div class="field">
+          <span>Where you'll buy it</span>
+          <div class="seg" data-key="region">
+            <button type="button" data-v="inch">US &amp; Canada</button>
+            <button type="button" data-v="metric">UK, IE, AU, NZ</button>
+          </div>
+          <small>Sets slide lengths, stock sizes and what things are called.</small>
+        </div>
+        <div class="field">
+          <span>Floor rails</span>
+          <div class="seg" data-key="rail_type">
+            <button type="button" data-v="angle">Aluminum angle</button>
+            <button type="button" data-v="printed">Printed</button>
+          </div>
+          <small data-show="rail_type=angle">Stronger and less printing. Needs a hacksaw and a drill.</small>
+          <small data-show="rail_type=printed">No metalwork. More print time.</small>
+        </div>
+      </section>
+
+      <details>
+        <summary>Hardware &amp; clearances</summary>
+        <div class="grid2">
+          <label class="field"><span>Slide thickness</span><input data-key="slide_t" data-kind="len" inputmode="decimal"><small>Per side. Standard is 1/2″.</small></label>
+          <label class="field"><span>Slide height</span><input data-key="slide_h" data-kind="len" inputmode="decimal"><small>Standard is 45 mm.</small></label>
+          <label class="field"><span>Side clearance</span><input data-key="clear_side" data-kind="len" inputmode="decimal"></label>
+          <label class="field"><span>Top clearance</span><input data-key="clear_top" data-kind="len" inputmode="decimal"></label>
+          <label class="field"><span>Rear clearance</span><input data-key="clear_rear" data-kind="len" inputmode="decimal"><small>Room for the tie-rod nuts.</small></label>
+          <label class="field"><span>Front clearance</span><input data-key="clear_front" data-kind="len" data-auto inputmode="decimal"></label>
+        </div>
+      </details>
+
+      <div class="actions">
+        <button type="button" id="reset" class="ghost">Reset</button>
+        <button type="button" id="share" class="ghost">Copy link</button>
+      </div>
+    </form>
+
+    <section class="stage">
+      <div class="viewer" id="viewer">
+        <div class="busy" id="busy" hidden><span></span>Rendering</div>
+        <div class="viewbar">
+          <label class="ext">Pull out <input type="range" id="extension" min="0" max="100" step="any" value="55"></label>
+          <div class="vbtns">
+            <button type="button" class="ghost sm" id="view-toggle" aria-expanded="false" aria-controls="viewpanel">View</button>
+            <button type="button" class="ghost sm" id="view-reset">Reset view</button>
+          </div>
+        </div>
+        <div class="viewpanel" id="viewpanel" hidden>
+          <div class="vrow"><span>Printed parts</span>
+            <div class="seg" data-view="printed"><button type="button" data-v="solid">Solid</button><button type="button" data-v="highlight">Highlight</button><button type="button" data-v="pieces" title="Each printed piece on its own, with the seams and bowtie keys">Pieces</button></div></div>
+          <div class="vrow"><span>Board look</span>
+            <div class="seg" data-view="boards"><button type="button" data-v="plain">Plain</button><button type="button" data-v="opengrid">openGrid</button><button type="button" data-v="hex" title="Honeycomb Storage Wall style">Hex</button><button type="button" data-v="skadis">SKÅDIS</button><button type="button" data-v="multiboard">Multiboard</button></div>
+            <small>A look only: the frame's grooves are sized for openGrid boards.</small></div>
+          <div class="vrow"><span>Drag arrows</span>
+            <div class="seg" data-view="handles"><button type="button" data-v="on">Show</button><button type="button" data-v="off">Hide</button></div></div>
+          <small>Drag an orange arrow to slide one pull-out in or out, or use the slider for all of them. Click the legend below to show or hide each kind of part.</small>
+        </div>
+        <div class="legend" aria-label="Show or hide">
+          <button type="button" data-cat="printed" title="Show or hide printed parts"><i class="sw frame"></i>Printed</button>
+          <button type="button" data-cat="boards" title="Show or hide the boards"><i class="sw board"></i>Boards</button>
+          <button type="button" data-cat="hardware" title="Show or hide slides, rods and angle"><i class="sw metal"></i>Hardware</button>
+          <button type="button" data-cat="door" title="Show or hide the door"><i class="sw door"></i>Door</button>
+          <button type="button" data-cat="cabinet" title="Show or hide the cabinet"><i class="sw cab"></i>Cabinet</button>
+          <button type="button" data-cat="keepouts" title="Show or hide things in the way"><i class="sw ko"></i>In the way</button>
+        </div>
+      </div>
+
+      <div class="report" id="report" aria-live="polite">
+        <div class="status" id="status">Loading OpenSCAD…</div>
+        <dl id="facts"></dl>
+        <ul id="tradeoffs"></ul>
+      </div>
+
+      <div class="report" id="build" hidden>
+        <div class="buildhead">
+          <h2>What to make</h2>
+          <div class="dl">
+            <label class="printer"><span>Printer</span> <select id="printer" aria-label="Your printer"></select></label>
+            <button type="button" id="download3mf" class="ghost">Bambu Studio project (.3mf)</button>
+            <button type="button" id="download" class="primary">Download all parts (.zip)</button>
+          </div>
+        </div>
+        <p class="hint" id="dl-status"></p>
+        <h3>Print <span class="hint" id="print-sum"></span> <span class="hint"><a href="docs/printing.html">settings</a></span></h3>
+        <table class="parts" id="parts"></table>
+        <h3>openGrid boards <span class="hint">print from <a href="https://www.printables.com/model/1214361-opengrid-walldesk-mounting-framework-and-ecosystem">openGrid</a></span></h3>
+        <div id="boards"></div>
+        <h3>Buy <span class="hint"><a href="docs/hardware.html">what to look for</a></span></h3>
+        <ul class="hw" id="hw"></ul>
+        <h3>Cut</h3>
+        <ul class="hw" id="cut"></ul>
+        <h3>Install <span class="hint"><a href="docs/assembly.html">full assembly guide</a></span></h3>
+        <ol class="steps" id="steps"></ol>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p><strong>PullGrid by Phorbie Designs</strong> · <a href="docs/">Docs</a> · <a href="https://github.com/Phorbie/PullGrid">Source on GitHub</a> · <a href="LICENSE">CC BY-SA 4.0</a>: share and remix with credit.</p>
+    <p class="small">Runs entirely in your browser with <a href="https://openscad.org">OpenSCAD</a> (GPL-2.0, <a href="vendor/openscad/COPYING">license</a>) and <a href="https://threejs.org">three.js</a> (MIT). Compatible with <a href="https://www.printables.com/model/1214361-opengrid-walldesk-mounting-framework-and-ecosystem">openGrid</a>.</p>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

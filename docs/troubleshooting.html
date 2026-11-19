@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Troubleshooting · PullGrid docs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 34%22%3E%3Crect width=%2234%22 height=%2234%22 rx=%227%22 fill=%22%231f1e1b%22/%3E%3Cpath d=%22M9 6v22M17 6v22M25 6v22%22 stroke=%22%23f3f0e8%22 stroke-width=%224%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="top"><a class="brand" href="../"><span class="logo" aria-hidden="true"></span><b>PullGrid</b></a><a class="cta" href="../">Open the generator</a></header>
+<div class="wrap">
+<nav class="side" aria-label="Docs"><a href="index.html">Overview</a><a href="measuring.html">Measuring</a><a href="door-mount.html">Door mount</a><a href="hardware.html">Hardware</a><a href="printing.html">Printing</a><a href="assembly.html">Assembly</a><a href="troubleshooting.html" aria-current="page">Troubleshooting</a><a href="parameters.html">Parameters</a><a href="design.html">Design notes</a></nav>
+<main><h1 id="troubleshooting">Troubleshooting</h1>
+<h2 id="generator-messages">Generator messages</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Message</th>
+<th>What it means</th>
+<th>What to do</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Doesn&#39;t fit</strong></td>
+<td>After the rails, slides, hinges and clearances, there isn&#39;t room for even one openGrid cell (28 mm) in some direction</td>
+<td>Re-measure the opening. In keep-hinged mode, try mounting the door instead, which frees the hinge space</td>
+</tr>
+<tr>
+<td><strong>The pull-out is narrow</strong></td>
+<td>It fits, but it&#39;s under 100 mm wide inside</td>
+<td>Fine for spices and sprays. Consider fewer panels</td>
+</tr>
+<tr>
+<td><strong>Shallower than the shortest standard slide</strong></td>
+<td>The cabinet is too shallow for a 10″ / 250 mm slide</td>
+<td>Check the depth measurement. Shorter slides exist but aren&#39;t stocked everywhere</td>
+</tr>
+<tr>
+<td><strong>Aluminum angle won&#39;t reach the slides</strong></td>
+<td>Your bottom rail is tall, so the slides sit higher than the tallest stock angle reaches</td>
+<td>Switch <em>Floor rails</em> to <strong>Printed</strong></td>
+</tr>
+<tr>
+<td><strong>That door is too thin</strong></td>
+<td>Door mount needs at least 15 mm of door for the bracket screws</td>
+<td>Keep the door hinged, or use shorter screws and accept less grip</td>
+</tr>
+<tr>
+<td><strong>Some parts are bigger than your bed</strong></td>
+<td>Shouldn&#39;t happen with auto pull-outs</td>
+<td>Check <em>Print bed</em>, or let <em>Pull-outs</em> go back to auto</td>
+</tr>
+<tr>
+<td><strong>Tier N: left empty</strong></td>
+<td>The gap between two fixed shelves (or a shelf and the top) is under about 3½″ / 90 mm</td>
+<td>Nothing to do: that gap keeps its shelf. Check the shelf heights are measured from the cabinet floor</td>
+</tr>
+<tr>
+<td><strong>Every tier got a shorter slide</strong></td>
+<td>With a mounted door, all tiers share one slide length: the shortest any tier can take</td>
+<td>Find the tier with the obstacle (the report says which) and see if it can move. Or keep the door hinged so each tier gets its own length</td>
+</tr>
+</tbody></table></div>
+<p>The report also lists what each obstacle cost, for example &quot;Hinge 1: narrowed the frame from the left&quot; or &quot;Keep-out 1, tier 2: shortened the frame from the back&quot;. That tells you which measurement to double-check.</p>
+<p><strong>A keep-out on the floor narrowed or shortened the pull-out instead of raising it.</strong> That&#39;s deliberate: the rails would stand on air or run through it. The pull-out only stands on a keep-out that covers the whole floor of the opening, front to back.</p>
+<h2 id="building-and-installing">Building and installing</h2>
+<p><strong>The slides bind or feel rough.</strong> The rails are too close together, not parallel, or not square to the front. Unscrew one rail and let the pull-out position it: clip it in, run it back and forth a few times, then re-mark and re-screw. If they&#39;re still tight, raise <em>Slide thickness</em> by 0.3 mm in <strong>Hardware &amp; clearances</strong> and reprint the base.</p>
+<p><strong>A board rattles in its groove, or won&#39;t go in.</strong> Your printer prints slightly under or over size. Adjust XY compensation in your slicer, or reprint the board slightly scaled. See <a href="printing.html#test-print-first">Test print first</a>.</p>
+<p><strong>The pull-out racks (leans) when you pull it.</strong> Tighten the tie rods evenly, a quarter turn at a time. Check the top rails are seated fully between the plates.</p>
+<p><strong>The tie rod is too short to get a nut on.</strong> The cut length includes room for a washer and nut at each end. Cut a new rod to the length in the <strong>Cut</strong> list, measured carefully.</p>
+<p><strong>The door&#39;s gaps are uneven.</strong> Use the slots: up and down at the plate screws, side to side at the door screws. If that isn&#39;t enough, the rails aren&#39;t square to the cabinet front.</p>
+<p><strong>One tier sits back from the mounted door.</strong> Its rails are further back than the others. Put a flat washer or two between each of its brackets and the front plate. Next time, set every tier&#39;s rails with a straightedge across the closed front plates.</p>
+<p><strong>The door hits the face frame before closing.</strong> Your face frame is deeper than the default 3/4″ (19 mm). Measure it and set <em>Face frame depth</em> in <strong>Advanced</strong>, then reprint the brackets.</p>
+<p><strong>Something else?</strong> Open an <a href="https://github.com/Phorbie/PullGrid/issues">issue on GitHub</a> with your settings link (the generator&#39;s <strong>Copy link</strong> button) and a photo.</p>
+</main>
+</div>
+<footer><b>PullGrid by Phorbie Designs</b> · <a href="https://github.com/Phorbie/PullGrid/tree/main/docs/troubleshooting.md">Edit this page on GitHub</a> · <a href="../LICENSE">CC BY-SA 4.0</a></footer>
+</body>
+</html>

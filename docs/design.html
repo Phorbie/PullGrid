@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Design notes · PullGrid docs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 34%22%3E%3Crect width=%2234%22 height=%2234%22 rx=%227%22 fill=%22%231f1e1b%22/%3E%3Cpath d=%22M9 6v22M17 6v22M25 6v22%22 stroke=%22%23f3f0e8%22 stroke-width=%224%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="top"><a class="brand" href="../"><span class="logo" aria-hidden="true"></span><b>PullGrid</b></a><a class="cta" href="../">Open the generator</a></header>
+<div class="wrap">
+<nav class="side" aria-label="Docs"><a href="index.html">Overview</a><a href="measuring.html">Measuring</a><a href="door-mount.html">Door mount</a><a href="hardware.html">Hardware</a><a href="printing.html">Printing</a><a href="assembly.html">Assembly</a><a href="troubleshooting.html">Troubleshooting</a><a href="parameters.html">Parameters</a><a href="design.html" aria-current="page">Design notes</a></nav>
+<main><h1 id="design-notes">Design notes</h1>
+<p>How PullGrid is put together, for anyone who wants to change it.</p>
+<h2 id="one-source-of-truth">One source of truth</h2>
+<p>All geometry lives in OpenSCAD: <code>scad/pullgrid.scad</code> plus <code>scad/lib/</code>. The same file runs in three places:</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Where</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>The <a href="https://phorbie.github.io/PullGrid/">website</a></td>
+<td>OpenSCAD compiled to WebAssembly, in a pool of Web Workers, with the Manifold backend (about 40× faster than CGAL)</td>
+</tr>
+<tr>
+<td>Desktop OpenSCAD</td>
+<td>Open <code>scad/pullgrid.scad</code> and use the Customizer</td>
+</tr>
+<tr>
+<td>CI</td>
+<td>OpenSCAD from Ubuntu&#39;s packages runs the test suites on every push</td>
+</tr>
+</tbody></table></div>
+<p>The site never computes geometry in JavaScript. It sends <code>-D</code> overrides to OpenSCAD, renders STLs with three.js, and reads a text report.</p>
+<p>The code targets <strong>OpenSCAD 2021.01</strong>, because MakerWorld&#39;s customizer lags behind. One trap: <code>[0:-1]</code> ranges count backwards in OpenSCAD, so empty lists use <code>seq(n)</code>.</p>
+<h2 id="the-pipeline">The pipeline</h2>
+<ol>
+<li><strong>Defaults</strong> (<code>pullgrid.scad</code>): basic inputs fill in the advanced ones (<code>-1</code> = auto), and hinges become keep-out boxes unless the door is mounted.</li>
+<li><strong>Tiers</strong> (<code>pullgrid.scad</code>): fixed shelves split the cabinet into gaps, each solved on its own.</li>
+<li><strong>Sweep envelope</strong> (<code>lib/envelope.scad</code>), per tier: the largest box that passes through the opening, fits the interior over its full travel, and misses every keep-out. The envelope carries <code>zf</code>, the height its rails stand on. Keep-outs block from <code>zf</code> up, and only a keep-out covering the whole width and rail run can raise <code>zf</code> (the rails stand on it).</li>
+<li><strong>Carriage layout</strong> (<code>lib/carriage.scad</code>, <code>carriage_geometry()</code>), per tier, in <strong>tier-local coordinates</strong> (z = 0 is what the rails stand on): splits wide envelopes into side-by-side pull-outs, sizes the frame to whole openGrid cells, picks the slide length and angle size, and places tie rods and door brackets. The result is a key/value list <code>G</code>, read with <code>g(G, &quot;key&quot;)</code>. Modules take <code>G</code> and never read globals. With a mounted door the tiers are solved three times: alone, then with a shared front plane, then with a shared slide length and angle size.
+Each tier then gets one <code>G</code> per pull-out (<code>units()</code>, <code>UNITS</code> in <code>pullgrid.scad</code>): same envelope, slides and position, its own panel layout from <code>reach_of()</code> (the <code>sides</code> override, then <code>reach_from</code>, then auto).</li>
+<li><strong>Parts</strong> (<code>part_specs()</code>): each part family is split along one axis to fit the bed. Each spec carries its assembled bounding box and a print rotation, so <code>print_part()</code> can slice, rotate and drop it onto z = 0. Specs from every pull-out are grouped by a <strong>shape signature</strong> (<code>part_sig()</code>, everything relative to the part itself), so a base that every tier shares is one file, not one per tier.</li>
+</ol>
+<h2 id="the-bambu-studio-project">The Bambu Studio project</h2>
+<p><code>site/threemf.js</code> turns the print STLs into a Bambu Studio / OrcaSlicer project 3MF. It computes no geometry: parts arrive from OpenSCAD already oriented and split, and it only lays them out on plates (<code>packPlates()</code>). What Bambu Studio needs to load more than geometry comes from its loader source (<code>Plater.cpp</code>, <code>bbs_3mf.cpp</code>):</p>
+<ul>
+<li><code>Application</code> metadata starting <code>BambuStudio-</code>. We claim 2.0.0, so any 2.x app loads it without a &quot;newer file&quot; prompt.</li>
+<li>A project config that only <strong>names</strong> Bambu&#39;s system presets and marks nothing as changed. Studio fills every value from its own presets.</li>
+<li>Plates in <code>model_settings.config</code>, with each instance placed inside its plate on Studio&#39;s grid (plates are rebuilt from position). Per-object <code>wall_loops</code> and infill.</li>
+<li>At most 36 plates per file. Stacked tiers get one file each, from the <code>part_tiers</code> report lines; a file past 36 plates splits.</li>
+</ul>
+<p>The carriage splits wide pieces short enough to sit above the 18 × 28 mm calibration corner on P1 and X1 beds (<code>SPLIT_MAX</code> in <code>carriage_geometry()</code>), so the layout never has to put a part there.</p>
+<p><code>tests/threemf.sh &lt;printer&gt;</code> builds the project exactly as the site does and checks it with <code>tests/threemf_check.py</code>: references, instance counts, plate membership and bounds, overlaps, the corner, watertight meshes and the preset names. It can&#39;t open the file in Bambu Studio itself, so a real-app check is still worth doing after format changes.</p>
+<h2 id="the-report">The report</h2>
+<p>OpenSCAD <code>echo</code> lines starting with <code>PULLGRID</code> are the interface between the model and the site:</p>
+<pre><code>PULLGRID tiers=2
+PULLGRID door=mount region=inch rails=angle reach=both
+PULLGRID tier=1 floor=0 envelope_mm=[274, 550, 361]
+PULLGRID tier=1 slide_mm=508
+PULLGRID tier=1 pullouts=1
+PULLGRID tier=1 pullout=1 reach=both panels=1
+PULLGRID tier=2 floor=400 envelope_mm=[274, 550, 222]
+PULLGRID tier=3 floor=640 skipped height=40
+PULLGRID part=0 id=base_1 qty=2 size=[241.6, 177.5, 45] label=Base 1/3
+PULLGRID part=3 id=t1_front_1 qty=1 size=[241.6, 177.3, 16] label=Tier 1: Front plate 1/2
+PULLGRID part_tiers=0 qty=[[1, 1], [2, 1]]
+PULLGRID hw=2 item=1/4in-20 threaded rod, 6 ft
+PULLGRID cut=6 len=561 item=tie rod
+PULLGRID WARNING tier_skipped
+</code></pre>
+<p>Lines about one tier start with <code>tier=&lt;n&gt; </code>; everything else (parts, hardware, cuts, warnings) covers the whole build. Part ids and labels carry a tier prefix only when not every tier uses that part. Adding new keys is fine. Changing the format of existing ones breaks the site.</p>
+<h2 id="tests">Tests</h2>
+<pre><code class="language-sh">tests/run.sh            # smoke tests: 50+ cabinets and modes, checks report lines
+tests/interference.sh   # every pair of parts must not overlap; tie rods must thread every hole;
+                        # nothing in any tier may hit a keep-out or shelf
+tests/print_parts.sh    # every print part exports, sits on z = 0 and fits the bed; the Pieces
+                        # view shows exactly one body per printed piece
+tests/threemf.sh p1s    # the Bambu Studio project builds, and every part lands on its plate
+</code></pre>
+<p>The interference test intersects pairs of parts and measures the result&#39;s volume. Part pairs use one tier (<code>-D test_tier=k</code> picks which); the whole-cabinet pairs use every tier in cabinet coordinates. Zero-volume face contact is fine; anything over 1 mm³ is a collision. All three suites accept extra <code>-D</code> arguments, so you can run them against any configuration, and CI runs all three.</p>
+<h2 id="front-handles">Front handles</h2>
+<p><code>handle_fields()</code> in <code>lib/carriage.scad</code> adds the handle layout to each pull-out&#39;s <code>G</code> (<code>h_at</code> centres, <code>h_cuts</code> slot cuts, <code>h_pts</code> screw holes) when the front plate is the face. Anything through the plate must clear the board grooves (<code>fix_x</code>), the plate seams and their keys (<code>fix_z</code>), the base below and the top rail above. Printed handles are their own print part, modelled in a local frame (along x, out toward −y, face at y = 0) and placed with <code>handle_place()</code>. With a hung door, <code>CF</code> grows by the handle depth so the door closes over them; <code>tests/interference.sh</code> checks that with a closed-door pair.</p>
+<h2 id="the-viewer">The viewer</h2>
+<p>The 3D view only displays what the model renders; nothing in it feeds back into the geometry.</p>
+<ul>
+<li><strong>Pieces</strong> renders <code>part=&quot;pieces&quot;</code> (and <code>&quot;rail_pieces&quot;</code> for printed rails): the same slices <code>print_part()</code> prints, in place, each shrunk 0.25 mm about its own centre so seams show and no two pieces fuse, with the bowtie keys in their pockets. The site colours each separate body so neighbours differ and paints the keys orange. It renders only when someone picks Pieces.</li>
+<li><strong>Board looks</strong> (openGrid, Hex, SKÅDIS, Multiboard) are a shader on the board faces, measured from the openGrid cell origin the report gives. They&#39;re looks only: the frame is grooved for openGrid boards.</li>
+<li><strong>Drag arrows</strong> float over each pull-out (always on top, a constant size on screen, so they never read as parts) and slide one pull-out each (all of them at once with a mounted door, which carries every pull-out). The slider moves them all.</li>
+</ul>
+<h2 id="why-opengrid-boards-aren39t-modeled">Why openGrid boards aren&#39;t modeled</h2>
+<p>The frame holds standard openGrid boards in grooves instead of printing its own panels. openGrid is CC BY 4.0, but the popular openGrid tile generator is CC BY-NC-SA, whose non-commercial clause conflicts with PullGrid&#39;s CC BY-SA. Re-modeling the tile profile from memory would risk snaps that don&#39;t fit. Holding real boards sidesteps both problems and keeps PullGrid inside openGrid&#39;s own ecosystem.</p>
+<h2 id="hardware-rules">Hardware rules</h2>
+<p>Non-printed hardware must be stocked by ordinary hardware stores in both inch markets (US, Canada) and metric ones (UK, Ireland, Australia, NZ). Printed holes accept both sizes (6.8 mm rod holes fit ¼″-20 and M6; 4.5 mm holes fit #8 and 4 mm screws), and nothing relies on a size-specific nut trap. See <a href="hardware.html">Hardware</a>.</p>
+<h2 id="contributing">Contributing</h2>
+<p>Issues and pull requests are welcome at <a href="https://github.com/Phorbie/PullGrid">github.com/Phorbie/PullGrid</a>. The most useful contribution right now is a <strong>real install</strong>: photos, your settings link, and what didn&#39;t fit.</p>
+<p>Before opening a pull request that touches geometry, run all three test suites.</p>
+<h2 id="license">License</h2>
+<p>PullGrid by Phorbie Designs: <a href="../LICENSE">CC BY-SA 4.0</a>. The website bundles OpenSCAD (GPL-2.0, via <a href="https://github.com/lorenzowritescode/openscad-wasm">openscad-wasm</a>) and three.js (MIT). openGrid is by David D, CC BY 4.0.</p>
+</main>
+</div>
+<footer><b>PullGrid by Phorbie Designs</b> · <a href="https://github.com/Phorbie/PullGrid/tree/main/docs/design.md">Edit this page on GitHub</a> · <a href="../LICENSE">CC BY-SA 4.0</a></footer>
+</body>
+</html>

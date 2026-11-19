@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Parameters · PullGrid docs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 34%22%3E%3Crect width=%2234%22 height=%2234%22 rx=%227%22 fill=%22%231f1e1b%22/%3E%3Cpath d=%22M9 6v22M17 6v22M25 6v22%22 stroke=%22%23f3f0e8%22 stroke-width=%224%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="top"><a class="brand" href="../"><span class="logo" aria-hidden="true"></span><b>PullGrid</b></a><a class="cta" href="../">Open the generator</a></header>
+<div class="wrap">
+<nav class="side" aria-label="Docs"><a href="index.html">Overview</a><a href="measuring.html">Measuring</a><a href="door-mount.html">Door mount</a><a href="hardware.html">Hardware</a><a href="printing.html">Printing</a><a href="assembly.html">Assembly</a><a href="troubleshooting.html">Troubleshooting</a><a href="parameters.html" aria-current="page">Parameters</a><a href="design.html">Design notes</a></nav>
+<main><h1 id="parameters">Parameters</h1>
+<p>Every input the generator and <code>scad/pullgrid.scad</code> accept. All dimensions are in <strong>mm</strong> inside the model; the website converts inches for you. <code>-1</code> means auto.</p>
+<p>PullGrid models a cabinet as <strong>a shape with obstacles in it</strong>: an opening in the front plane, an interior that can taper toward the back, fixed shelves that split it into tiers, and a list of keep-out boxes. Hinges are keep-outs generated for you (and dropped entirely when the door is mounted).</p>
+<h2 id="coordinates">Coordinates</h2>
+<p>Relative to the cabinet <strong>interior</strong>: <code>x</code> across from the left wall, <code>y</code> depth from the front plane (the back of the face frame; the front edge of a frameless box), <code>z</code> up from the floor.</p>
+<h2 id="basic">Basic</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>opening_w</code>, <code>opening_h</code></td>
+<td>Clear opening you can pass something through</td>
+</tr>
+<tr>
+<td><code>interior_depth</code></td>
+<td>Front plane to back wall, at the floor</td>
+</tr>
+<tr>
+<td><code>frame_type</code></td>
+<td><code>face_frame</code> or <code>frameless</code>. Drives the offset defaults</td>
+</tr>
+<tr>
+<td><code>hinge_side</code></td>
+<td><code>left</code>, <code>right</code>, <code>none</code>. Only used when the door is kept hinged</td>
+</tr>
+<tr>
+<td><code>shelves</code></td>
+<td>Fixed shelves: <code>[top, top, ...]</code>, each shelf&#39;s top surface above the interior floor, in any order. Each gap gets its own pull-out (tier). Empty = none</td>
+</tr>
+</tbody></table></div>
+<h2 id="door">Door</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>door_mode</code></td>
+<td><code>mount</code></td>
+<td><code>mount</code>: the door comes off its hinges and screws to printed brackets on the front plate. <code>keep</code>: the door stays hinged; hinges become keep-outs. <code>none</code>: no door; nothing to dodge. With <code>keep</code> or <code>none</code> the front plate is solid and carries the <a href="#front-handles">front handles</a></td>
+</tr>
+<tr>
+<td><code>door_thickness</code></td>
+<td>19</td>
+<td>Door mount needs at least 15</td>
+</tr>
+<tr>
+<td><code>door_overlay</code></td>
+<td>12.7</td>
+<td>How far the door overlaps the opening per side. Preview only</td>
+</tr>
+<tr>
+<td><code>face_frame_thickness</code></td>
+<td>-1</td>
+<td>Face frame depth, front to back. Auto: 19 face frame, 0 frameless. Sets the bracket depth</td>
+</tr>
+<tr>
+<td><code>door_opens</code></td>
+<td><code>past_90</code></td>
+<td>Keep mode: <code>only_90</code> if something stops the door at 90°. Then the pull-out next to the hinges is one-sided (see <code>sides</code>)</td>
+</tr>
+</tbody></table></div>
+<p>With a mounted door and more than one tier, every tier is fixed to the door: they share the shortest slide length and the deepest front plane, and get one row of brackets each instead of two.</p>
+<h2 id="front-handles">Front handles</h2>
+<p>Only when the front plate is the face (<code>door_mode</code> = <code>keep</code> or <code>none</code>). A mounted door keeps its own pull.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>handle</code></td>
+<td><code>slot</code></td>
+<td><code>slot</code>: finger slots cut through the plate. <code>bar</code>, <code>arch</code>, <code>knob</code>: printed, screwed on from inside the plate (one screw per post). <code>pull</code>: a store-bought cabinet pull, bolted on with short machine screws. <code>none</code></td>
+</tr>
+<tr>
+<td><code>handle_dir</code></td>
+<td><code>horizontal</code></td>
+<td><code>vertical</code> turns slots, bars, arches and pulls upright</td>
+</tr>
+<tr>
+<td><code>handle_pos</code></td>
+<td><code>top</code></td>
+<td><code>top</code>, <code>middle</code> or <code>bottom</code> of the front</td>
+</tr>
+<tr>
+<td><code>handle_across</code></td>
+<td><code>center</code></td>
+<td>With one handle: <code>left</code>, <code>center</code> or <code>right</code></td>
+</tr>
+<tr>
+<td><code>handle_count</code></td>
+<td>-1</td>
+<td>Per pull-out. Auto: one in the middle, or one each side when a board runs down the middle (its groove is in the way). 2 = side by side; vertical ones go near each edge</td>
+</tr>
+<tr>
+<td><code>handle_size</code></td>
+<td>-1</td>
+<td>Slot length, screw spacing (bar, arch, pull) or knob diameter. Auto: 90 slot, 96 bar/arch/pull, 32 knob. Pulls come in 96 mm (3¾″) and 128 mm (5″) everywhere</td>
+</tr>
+</tbody></table></div>
+<p>Anything that goes through the plate stays clear of the board grooves, the plate seams and their keys. A horizontal slot across a groove gets a bridge over it. If a handle has to move to fit, the report says so. Printed handles stick out 34 mm (knobs 32, pulls about 35); with a kept door the pull-out sits back far enough for the door to close over them.</p>
+<h2 id="advanced-offsets-and-odd-shapes">Advanced: offsets and odd shapes</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Auto value</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>offset_left/right</code></td>
+<td>10 face frame, 0 frameless</td>
+<td>Face frame overhang past the interior wall</td>
+</tr>
+<tr>
+<td><code>offset_bottom</code></td>
+<td>15 / 0</td>
+<td>Bottom rail height above the floor. The moving parts must clear it</td>
+</tr>
+<tr>
+<td><code>offset_top</code></td>
+<td>10 / 0</td>
+<td>Top rail drop</td>
+</tr>
+<tr>
+<td><code>rear_w</code>, <code>rear_h</code></td>
+<td>same as front</td>
+<td>Non-square cabinets; rear assumed centered</td>
+</tr>
+<tr>
+<td><code>hinges</code></td>
+<td>2–4 Euro hinges by door height, 80 mm from the ends, 12 mm (face frame) / 20 mm intrusion</td>
+<td><code>[[center_z, intrusion, height, depth], ...]</code>. Keep mode only</td>
+</tr>
+<tr>
+<td><code>door_intrusion</code></td>
+<td>0</td>
+<td>Keep mode: how far a door at 90° sticks into the opening (inset doors). Overlay doors: 0</td>
+</tr>
+<tr>
+<td><code>shelf_thickness</code></td>
+<td>19</td>
+<td>Fixed shelves</td>
+</tr>
+<tr>
+<td><code>shelf_setback</code></td>
+<td>0</td>
+<td>Fixed shelves: front edge behind the front plane. Tiers on shelves start this far back</td>
+</tr>
+</tbody></table></div>
+<p><strong>The auto values are educated guesses.</strong> They need checking against real cabinets.</p>
+<h2 id="expert">Expert</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>keepouts</code></td>
+<td><code>[[x, y, z, w, d, h], ...]</code>: plumbing, disposal, shelf pin rows</td>
+</tr>
+</tbody></table></div>
+<h3 id="how-keep-outs-are-solved">How keep-outs are solved</h3>
+<p>A pull-out sweeps its whole profile through every depth as it slides out, so anything whose x–z footprint overlaps the frame blocks it, wherever it sits in depth. The one escape is ending the frame in front of it.</p>
+<p>For each keep-out the solver tries five dodges (shrink from the left, right, bottom or top, or shorten from the back) and keeps the one that loses the least volume. It&#39;s greedy and order-dependent: good enough for hinges plus a pipe.</p>
+<p>The floor rails stand below the frame, so a keep-out blocks anything from the tier&#39;s floor up. <strong>Raising the floor</strong> is only allowed when the keep-out covers the tier&#39;s whole width and rail run: the rails then stand on top of it. Anything smaller gets one of the other dodges.</p>
+<p>Each tier is solved separately, in the slice between its shelf (or the floor) and the shelf above (or the opening top), so a keep-out only costs the tiers it reaches.</p>
+<h2 id="pull-out">Pull-out</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>panel_count</code></td>
+<td>1</td>
+<td>openGrid panels per pull-out, running front to back</td>
+</tr>
+<tr>
+<td><code>panel_thickness</code></td>
+<td>6.8</td>
+<td>6.8 = openGrid Full (double-sided), 4.0 = Lite</td>
+</tr>
+<tr>
+<td><code>pullouts</code></td>
+<td>-1 (auto)</td>
+<td>Side-by-side pull-outs. Auto = as few as fit the print bed</td>
+</tr>
+<tr>
+<td><code>bed_size</code></td>
+<td>256</td>
+<td>Parts are split to fit, with a 6 mm margin</td>
+</tr>
+<tr>
+<td><code>reach_from</code></td>
+<td><code>auto</code></td>
+<td><code>both</code>, <code>left</code> or <code>right</code> for every pull-out at once. One side = a single panel against the other side, all accessories facing you (<code>panel_count</code> is ignored)</td>
+</tr>
+<tr>
+<td><code>sides</code></td>
+<td><code>[]</code></td>
+<td>Per pull-out, beating <code>reach_from</code>: <code>[[tier, position, &quot;both&quot; | &quot;left&quot; | &quot;right&quot; | &quot;auto&quot;], ...]</code>, position counted from the left. Auto: one-sided next to the hinges of a kept door with <code>door_opens = only_90</code>; side-by-side pull-outs on a mounted door face outward; otherwise both</td>
+</tr>
+</tbody></table></div>
+<p>The frame is sized to whole 28 mm openGrid cells, so it can come out up to one cell shorter and shallower than the space allows.</p>
+<h2 id="hardware">Hardware</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>region</code></td>
+<td><code>inch</code></td>
+<td><code>inch</code> (US, Canada) or <code>metric</code> (UK, IE, AU, NZ). Sets the slide length list (10–28″ in 2″ steps, or 250–600 mm in 50 mm steps), angle sizes, and shopping-list names. The website picks it from your browser&#39;s language</td>
+</tr>
+<tr>
+<td><code>rail_type</code></td>
+<td><code>angle</code></td>
+<td><code>angle</code>: aluminum angle floor rails. <code>printed</code>: printed rails, no metalwork</td>
+</tr>
+<tr>
+<td><code>angle_thickness</code></td>
+<td>-1</td>
+<td>Angle wall thickness. Auto: 3.2 inch, 3.0 metric</td>
+</tr>
+<tr>
+<td><code>slide_t</code></td>
+<td>13.0</td>
+<td>Slide clearance per side. The spec is ½″ (12.7) plus up to 1/32″, so 13.0 aims mid-range</td>
+</tr>
+<tr>
+<td><code>slide_h</code></td>
+<td>45</td>
+<td>Slide body height</td>
+</tr>
+</tbody></table></div>
+<p>The angle must reach above the slide&#39;s screw line: leg ≥ slide bottom + 28.5 mm. The generator picks 1½″ / 40 mm, or 2″ / 50 mm when the bottom rail is tall, and warns if neither reaches. With several tiers it uses the bigger size everywhere, so you buy one stock size.</p>
+<h2 id="clearances">Clearances</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>clear_side</code></td>
+<td>3</td>
+<td>Each side, inside the opening</td>
+</tr>
+<tr>
+<td><code>clear_top</code></td>
+<td>5</td>
+<td>Above the frame</td>
+</tr>
+<tr>
+<td><code>clear_rear</code></td>
+<td>10</td>
+<td>Behind the rear plate. Keep ≥ 10 for the tie-rod nuts</td>
+</tr>
+<tr>
+<td><code>clear_front</code></td>
+<td>-1</td>
+<td>In front of the front plate. Auto: <code>max(0, 9 − face frame depth)</code>, which leaves room for the tie-rod nuts and door brackets; with a kept door and handles that stick out, enough for the door to close over them</td>
+</tr>
+</tbody></table></div>
+<h2 id="render">Render</h2>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Param</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>part</code></td>
+<td><code>assembly</code>, <code>carriage</code>, <code>pieces</code> (every printed piece in place, seams apart, keys in their pockets), <code>rail_pieces</code> (the same for printed rails), <code>boards</code>, <code>rails</code>, <code>slides_fixed</code> (slides + angle), <code>slides_moving</code> (slides + tie rods), <code>door</code>, <code>cabinet</code>, <code>keepouts</code>, <code>envelope</code>, <code>print</code>, <code>none</code></td>
+</tr>
+<tr>
+<td><code>print_index</code></td>
+<td>With <code>part = &quot;print&quot;</code>: which part, from the <code>PULLGRID part=</code> report lines. Print parts come out oriented and sitting on z = 0</td>
+</tr>
+<tr>
+<td><code>extension</code></td>
+<td>Preview only: 0 = closed, 1 = full slide travel</td>
+</tr>
+<tr>
+<td><code>show_cabinet</code></td>
+<td>Ghost cabinet in the assembly preview</td>
+</tr>
+<tr>
+<td><code>test_tier</code>, <code>test_pullout</code></td>
+<td>Hidden. Which pull-out <code>G</code> describes (for the interference tests)</td>
+</tr>
+</tbody></table></div>
+</main>
+</div>
+<footer><b>PullGrid by Phorbie Designs</b> · <a href="https://github.com/Phorbie/PullGrid/tree/main/docs/parameters.md">Edit this page on GitHub</a> · <a href="../LICENSE">CC BY-SA 4.0</a></footer>
+</body>
+</html>

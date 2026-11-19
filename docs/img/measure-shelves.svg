@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 470" font-family="system-ui, -apple-system, Segoe UI, sans-serif" font-size="13">
+  <title>Front view of a cabinet with two fixed shelves: measure from the cabinet floor to the top of each shelf</title>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1L9 5L1 9" fill="none" stroke="#d9541e" stroke-width="1.6"/></marker></defs>
+  <rect width="720" height="470" fill="#fbfaf6"/>
+  <!-- cabinet interior -->
+  <rect x="90" y="30" width="260" height="400" fill="#fff" stroke="#8a6d48" stroke-width="2"/>
+  <!-- floor -->
+  <rect x="90" y="420" width="260" height="10" fill="#e6d3b3" stroke="#8a6d48"/>
+  <!-- shelves -->
+  <rect x="92" y="290" width="256" height="14" fill="#e6d3b3" stroke="#8a6d48"/>
+  <rect x="92" y="150" width="256" height="14" fill="#e6d3b3" stroke="#8a6d48"/>
+  <!-- tier labels -->
+  <g fill="#0f6e56" font-weight="600" text-anchor="middle">
+    <text x="250" y="392">tier 1</text>
+    <text x="250" y="262">tier 2</text>
+    <text x="250" y="96">tier 3</text>
+  </g>
+  <!-- dims: floor to top of each shelf -->
+  <line x1="130" y1="419" x2="130" y2="291" stroke="#d9541e" stroke-width="1.6" marker-start="url(#a)" marker-end="url(#a)"/>
+  <line x1="170" y1="419" x2="170" y2="151" stroke="#d9541e" stroke-width="1.6" marker-start="url(#a)" marker-end="url(#a)"/>
+  <!-- thickness -->
+  <line x1="330" y1="150" x2="330" y2="164" stroke="#1f1e1b" stroke-width="1.2"/>
+  <g fill="#1f1e1b">
+    <line x1="130" y1="355" x2="390" y2="355" stroke="#a9a397"/>
+    <text x="396" y="351" font-weight="600" fill="#d9541e">Shelf 1</text>
+    <text x="396" y="368" fill="#6c675c">cabinet floor to the top of the shelf</text>
+    <line x1="170" y1="215" x2="390" y2="215" stroke="#a9a397"/>
+    <text x="396" y="211" font-weight="600" fill="#d9541e">Shelf 2</text>
+    <text x="396" y="228" fill="#6c675c">also from the cabinet floor,</text>
+    <text x="396" y="244" fill="#6c675c">not from the shelf below</text>
+    <line x1="334" y1="157" x2="390" y2="140" stroke="#a9a397"/>
+    <text x="396" y="136" font-weight="600">Shelf thickness</text>
+    <text x="396" y="153" fill="#6c675c">Advanced. Usually 3/4″ (19 mm)</text>
+    <text x="220" y="452" text-anchor="middle" fill="#6c675c">the inside floor, not the face frame's bottom rail</text>
+  </g>
+</svg>

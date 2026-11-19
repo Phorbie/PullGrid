@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Printing · PullGrid docs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 34%22%3E%3Crect width=%2234%22 height=%2234%22 rx=%227%22 fill=%22%231f1e1b%22/%3E%3Cpath d=%22M9 6v22M17 6v22M25 6v22%22 stroke=%22%23f3f0e8%22 stroke-width=%224%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="top"><a class="brand" href="../"><span class="logo" aria-hidden="true"></span><b>PullGrid</b></a><a class="cta" href="../">Open the generator</a></header>
+<div class="wrap">
+<nav class="side" aria-label="Docs"><a href="index.html">Overview</a><a href="measuring.html">Measuring</a><a href="door-mount.html">Door mount</a><a href="hardware.html">Hardware</a><a href="printing.html" aria-current="page">Printing</a><a href="assembly.html">Assembly</a><a href="troubleshooting.html">Troubleshooting</a><a href="parameters.html">Parameters</a><a href="design.html">Design notes</a></nav>
+<main><h1 id="printing">Printing</h1>
+<p>The generator&#39;s zip contains every part as an STL, already oriented for printing and split to fit your bed. File names carry the quantity: <code>09-bracket-x4.stl</code> means print four. Printing on a Bambu Lab printer? The zip also holds a <a href="#bambu-studio-and-orcaslicer">ready-to-print project</a>.</p>
+<h2 id="bambu-studio-and-orcaslicer">Bambu Studio and OrcaSlicer</h2>
+<p>Pick your printer next to the download buttons, then download <strong>Bambu Studio project (.3mf)</strong> (it&#39;s in the zip too). Open it and everything is set up:</p>
+<ul>
+<li><strong>Plate 1 is the test piece</strong>: one base piece on its own. Print it and <a href="#test-print-first">test-fit it</a> before the rest.</li>
+<li>Every other part is laid out on plates, grouped by part, with copies already made. Plate names say what&#39;s on them: <em>Front plate 2 of 3</em>, <em>Brackets and keys ×14</em>.</li>
+<li>Walls and infill are set <strong>per part</strong> (5 walls on parts that hold screws, 4 elsewhere, 25% gyroid), so they survive a change of process preset.</li>
+<li>Parts stay clear of the front-left calibration corner on P1 and X1 printers.</li>
+</ul>
+<p>The project starts on Bambu&#39;s own <strong>0.20mm Standard</strong> process and <strong>Generic PETG</strong>. Pick your actual filament (or let the AMS sync it) before slicing. If your printer model isn&#39;t in the list, pick the closest and switch printers in Studio: the plates and per-part settings carry over.</p>
+<p>With fixed shelves you get <strong>one project per tier</strong> (<em>…-tier1.3mf</em>, <em>…-tier2.3mf</em>), each with exactly the parts that tier needs, so you can print and fit one tier at a time. The test piece is on plate 1 of the first. Bambu Studio holds at most 36 plates per project, so a tier that needs more comes as two files.</p>
+<p>Other slicers: use the STLs. Settings are in the table below.</p>
+<h2 id="material-and-settings">Material and settings</h2>
+<p><strong>PETG or PETG-GF.</strong> Under-sink cabinets get warm and humid, and the parts carry weight for years. PLA creeps under steady load, so avoid it for the base and plates.</p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Layer height</td>
+<td>0.2 mm</td>
+</tr>
+<tr>
+<td>Walls</td>
+<td>4 (5 for the base and printed rails, which hold screws)</td>
+</tr>
+<tr>
+<td>Infill</td>
+<td>25% gyroid</td>
+</tr>
+<tr>
+<td>Supports</td>
+<td>None needed</td>
+</tr>
+<tr>
+<td>Brim</td>
+<td>Optional on the long base and rail pieces if your bed is fussy</td>
+</tr>
+</tbody></table></div>
+<p>Everything is oriented for you: plates print face-down, top rails print cap-down, brackets print door-side-down, bar and arch handles print on their side, knobs print face-down. Don&#39;t rotate them.</p>
+<h2 id="what-you39ll-print">What you&#39;ll print</h2>
+<p><img src="img/part-base.png" alt="A base piece: floor with drain slots, slide cheeks, tie-rod beads and the board groove"></p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Part</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Base</strong> (usually 3 pieces)</td>
+<td>The tray the slides screw to. Grooves hold the bottom of the boards; beads along each side carry the tie rods</td>
+</tr>
+<tr>
+<td><strong>Front plate</strong> (3 pieces)</td>
+<td>Carries the door brackets. An open frame in door-mount mode; a solid face with your choice of handles if you keep the door hinged or have none</td>
+</tr>
+<tr>
+<td><strong>Rear plate</strong> (3 pieces)</td>
+<td>Open frame with grooves for the back of the boards</td>
+</tr>
+<tr>
+<td><strong>Top rail</strong> (3 pieces per panel)</td>
+<td>Caps the boards and ties the plates together at the top</td>
+</tr>
+<tr>
+<td><strong>Door bracket</strong> (4 per door)</td>
+<td>Door-mount mode only</td>
+</tr>
+<tr>
+<td><strong>Handles or knobs</strong></td>
+<td>Only if you picked printed ones. Screw on from inside the front plate</td>
+</tr>
+<tr>
+<td><strong>Bowtie keys</strong></td>
+<td>Glue into the plate seams</td>
+</tr>
+<tr>
+<td><strong>Floor rails</strong></td>
+<td>Only if you chose printed rails</td>
+</tr>
+</tbody></table></div>
+<p><img src="img/part-front.png" alt="A front plate piece in door-mount mode: open frame with bracket pads"> <img src="img/part-bracket.png" alt="A door bracket with slotted screw holes"></p>
+<h2 id="opengrid-boards">openGrid boards</h2>
+<p>PullGrid doesn&#39;t print the panels itself: you print standard <strong>openGrid</strong> boards from <a href="https://www.printables.com/model/1214361-opengrid-walldesk-mounting-framework-and-ecosystem">openGrid&#39;s own files</a>, so every openGrid snap and accessory fits exactly. The generator&#39;s <strong>openGrid boards</strong> list gives the sizes in cells (wide × tall) and how many of each.</p>
+<ul>
+<li>Use <strong>Full</strong> boards: they&#39;re 6.8 mm thick and usable from both sides.</li>
+<li><strong>Lite</strong> boards (4 mm) work if you set <em>Board type</em> to Lite, but only one side takes accessories.</li>
+<li>You&#39;ll also need openGrid&#39;s connector pegs for the seams between boards.</li>
+</ul>
+<h2 id="test-print-first">Test print first</h2>
+<p>PullGrid is in beta, so before printing about a kilo of plastic:</p>
+<ol>
+<li><strong>Print <code>base_1</code> only.</strong></li>
+<li><strong>Hold a slide against the cheek.</strong> The inner member should sit flat, and its holes should land on solid plastic. Drive one screw and check it holds.</li>
+<li><strong>Push an openGrid board into the groove.</strong> It should slide in with light friction, not rattle and not jam.</li>
+<li><strong>Push your threaded rod through the bead.</strong> It should pass freely.</li>
+</ol>
+<p>If the board is too tight or loose, your printer runs a little over or under size. Adjust your slicer&#39;s XY compensation, or open an <a href="https://github.com/Phorbie/PullGrid/issues">issue</a> with what you found: that&#39;s exactly the feedback the project needs right now.</p>
+<h2 id="how-much-plastic">How much plastic</h2>
+<p>The generator&#39;s <strong>Print</strong> line estimates the total. For a typical 11″ × 24″ × 22″ cabinet with a mounted door it&#39;s roughly 1 kg of PETG. Printed rails add about a fifth more.</p>
+<nav class="pager"><a href="hardware.html">← Hardware</a><a href="assembly.html">Assembly →</a></nav></main>
+</div>
+<footer><b>PullGrid by Phorbie Designs</b> · <a href="https://github.com/Phorbie/PullGrid/tree/main/docs/printing.md">Edit this page on GitHub</a> · <a href="../LICENSE">CC BY-SA 4.0</a></footer>
+</body>
+</html>

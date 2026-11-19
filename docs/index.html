@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PullGrid docs · PullGrid docs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 34%22%3E%3Crect width=%2234%22 height=%2234%22 rx=%227%22 fill=%22%231f1e1b%22/%3E%3Cpath d=%22M9 6v22M17 6v22M25 6v22%22 stroke=%22%23f3f0e8%22 stroke-width=%224%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="top"><a class="brand" href="../"><span class="logo" aria-hidden="true"></span><b>PullGrid</b></a><a class="cta" href="../">Open the generator</a></header>
+<div class="wrap">
+<nav class="side" aria-label="Docs"><a href="index.html" aria-current="page">Overview</a><a href="measuring.html">Measuring</a><a href="door-mount.html">Door mount</a><a href="hardware.html">Hardware</a><a href="printing.html">Printing</a><a href="assembly.html">Assembly</a><a href="troubleshooting.html">Troubleshooting</a><a href="parameters.html">Parameters</a><a href="design.html">Design notes</a></nav>
+<main><h1 id="pullgrid-docs">PullGrid docs</h1>
+<p>PullGrid turns a deep cabinet into a pull-out. You enter your cabinet&#39;s measurements, and the <a href="https://phorbie.github.io/PullGrid/">generator</a> gives you 3D-printable parts sized to it, a shopping list of a few cheap hardware-store items, and install steps. The panels are standard <a href="https://www.printables.com/model/1214361-opengrid-walldesk-mounting-framework-and-ecosystem">openGrid</a> boards, so the whole openGrid accessory ecosystem snaps onto both sides.</p>
+<p><img src="img/assembly-mount.png" alt="A PullGrid pull-out with the cabinet door mounted on its front, pulled out of a cabinet"></p>
+<blockquote>
+<p><strong>Beta.</strong> PullGrid hasn&#39;t been proven in a real cabinet yet. Before printing everything, print one base piece and dry-fit your slides: see <a href="printing.html#test-print-first">Test print first</a>.</p>
+</blockquote>
+<h2 id="start-here">Start here</h2>
+<ol>
+<li><strong><a href="measuring.html">Measure your cabinet</a></strong>: three numbers for most cabinets, five minutes with a tape measure. Plus one per <a href="measuring.html#fixed-shelves">fixed shelf</a>, if you have any.</li>
+<li><strong><a href="door-mount.html">Decide about your door</a></strong>: mount it on the pull-out (recommended) or keep it hinged. Keeping a door that <a href="door-mount.html#when-the-door-only-opens-to-90">only opens to 90°</a>? The pull-out next to it goes one-sided, and you can <a href="door-mount.html#choosing-sides-for-each-pull-out">choose sides</a> for each pull-out.</li>
+<li><strong>Run the <a href="https://phorbie.github.io/PullGrid/">generator</a></strong> and download the parts zip.</li>
+<li><strong><a href="hardware.html">Buy the hardware</a></strong>: slides, aluminum angle, threaded rod, screws. Found in any big-box store in the US, Canada, UK, Ireland, Australia and New Zealand.</li>
+<li><strong><a href="printing.html">Print</a></strong> the parts and the openGrid boards.</li>
+<li><strong><a href="assembly.html">Assemble and install</a></strong>.</li>
+</ol>
+<p>Stuck? See <a href="troubleshooting.html">Troubleshooting</a>.</p>
+<h2 id="how-it-works">How it works</h2>
+<p><img src="img/assembly-back.png" alt="The pull-out from behind: aluminum angle rails on the floor, the carriage on slides, and the door on the front"></p>
+<div class="tablewrap"><table>
+<thead>
+<tr>
+<th>Part</th>
+<th>What it is</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Floor rails</strong></td>
+<td>Two pieces of aluminum angle screwed to the cabinet floor (or printed rails if you&#39;d rather not cut metal)</td>
+</tr>
+<tr>
+<td><strong>Slides</strong></td>
+<td>A standard pair of 45 mm full-extension ball-bearing drawer slides</td>
+</tr>
+<tr>
+<td><strong>Carriage</strong></td>
+<td>Printed base, front plate, rear plate and top rail, clamped into one box by threaded tie rods</td>
+</tr>
+<tr>
+<td><strong>Panels</strong></td>
+<td>Standard openGrid boards standing in grooves, front to back</td>
+</tr>
+<tr>
+<td><strong>Door</strong></td>
+<td>Your existing cabinet door, taken off its hinges and screwed to printed brackets on the front</td>
+</tr>
+</tbody></table></div>
+<p>The generator works out the biggest pull-out that fits through your opening and misses anything in the way, sizes it to whole 28 mm openGrid cells, picks the longest standard slide that fits, and splits every part to fit your print bed. Fixed shelves get one pull-out (tier) per gap; parts the tiers share come out as one file.</p>
+<h2 id="reference">Reference</h2>
+<ul>
+<li><a href="parameters.html">Parameters</a>: every input and what it does</li>
+<li><a href="design.html">Design notes</a>: how the generator works, tests, licensing, contributing</li>
+</ul>
+<h2 id="license">License</h2>
+<p>PullGrid by Phorbie Designs is licensed under <a href="../LICENSE">CC BY-SA 4.0</a>. Use it, remix it, sell prints of it: credit <strong>PullGrid by Phorbie Designs</strong> and share remixes under the same license.</p>
+<nav class="pager"><span></span><a href="measuring.html">Measuring →</a></nav></main>
+</div>
+<footer><b>PullGrid by Phorbie Designs</b> · <a href="https://github.com/Phorbie/PullGrid/tree/main/docs/README.md">Edit this page on GitHub</a> · <a href="../LICENSE">CC BY-SA 4.0</a></footer>
+</body>
+</html>

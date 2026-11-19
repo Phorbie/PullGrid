@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mounting your door on the pull-out · PullGrid docs</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 34 34%22%3E%3Crect width=%2234%22 height=%2234%22 rx=%227%22 fill=%22%231f1e1b%22/%3E%3Cpath d=%22M9 6v22M17 6v22M25 6v22%22 stroke=%22%23f3f0e8%22 stroke-width=%224%22/%3E%3C/svg%3E">
+<link rel="stylesheet" href="docs.css">
+</head>
+<body>
+<header class="top"><a class="brand" href="../"><span class="logo" aria-hidden="true"></span><b>PullGrid</b></a><a class="cta" href="../">Open the generator</a></header>
+<div class="wrap">
+<nav class="side" aria-label="Docs"><a href="index.html">Overview</a><a href="measuring.html">Measuring</a><a href="door-mount.html" aria-current="page">Door mount</a><a href="hardware.html">Hardware</a><a href="printing.html">Printing</a><a href="assembly.html">Assembly</a><a href="troubleshooting.html">Troubleshooting</a><a href="parameters.html">Parameters</a><a href="design.html">Design notes</a></nav>
+<main><h1 id="mounting-your-door-on-the-pull-out">Mounting your door on the pull-out</h1>
+<p>In door-mount mode (the default), your cabinet door comes off its hinges and screws to printed brackets on the pull-out&#39;s front plate. The door becomes the pull-out&#39;s front, like a drawer. This is what commercial base-cabinet pull-outs do.</p>
+<h2 id="why-mount-it">Why mount it</h2>
+<p>Most cabinet hinges only open to about 90°. With the door hinged, it stands right beside the pulled-out shelf and covers about half of the hinge-side face. What hangs there is only reachable through a narrow slot between the door and the panel.</p>
+<p><img src="img/hinge-problem.svg" alt="Top view: a 90-degree door standing beside the pulled-out pull-out, blocking about half of one face"></p>
+<p>Mounting the door fixes that completely, and it also gives you width back: with no hinges inside the opening, the frame doesn&#39;t have to narrow itself to dodge them.</p>
+<p><img src="img/keep-door.png" alt="The pull-out with the door kept hinged and open at 90 degrees"></p>
+<h2 id="how-it-works">How it works</h2>
+<p><img src="img/door-mount.svg" alt="Side section of the door bracket between the door and the front plate"></p>
+<ul>
+<li>The <strong>brackets</strong> fill the gap between the back of your door and the front plate. The generator sizes them: face frame depth + front gap + 2 mm.</li>
+<li>Each bracket screws <strong>to the door</strong> with two wood screws through slotted holes (±3 mm side to side), then <strong>to the front plate</strong> with two screws from inside the pull-out, through slots in the plate (±4 mm up and down).</li>
+<li>The door closes against the face frame like it always did, and the slides take the weight. A typical cabinet door is far under the 100 lb (45 kg) slide rating.</li>
+<li>In door-mount mode, the front plate is an open frame instead of a solid sheet, since the door is the face. That saves a lot of plastic.</li>
+</ul>
+<h2 id="cabinets-with-fixed-shelves">Cabinets with fixed shelves</h2>
+<p>With <a href="measuring.html#fixed-shelves">fixed shelves</a>, each gap gets its own pull-out (tier), and the door screws to <strong>all of them</strong>. They become one tall unit that pulls out together, with the shelves staying put inside.</p>
+<p><img src="img/tiers.png" alt="Four tiers on fixed shelves, all mounted to one door and pulled out together"></p>
+<p>That works because the generator gives every tier:</p>
+<ul>
+<li>the <strong>same slide length</strong> (the shortest any tier can take), so they all travel the same distance;</li>
+<li>the <strong>same front plane</strong> (the deepest shelf setback wins), so the door touches every bracket;</li>
+<li><strong>one row of brackets</strong> instead of two, since the load is shared.</li>
+</ul>
+<p>If one tier ends up sitting back from the door after install, put a washer or two behind its brackets.</p>
+<h2 id="fitting-the-door">Fitting the door</h2>
+<p>The full steps are in <a href="assembly.html#7-mount-the-door">Assembly</a>. The short version, which is the same trick the commercial kits use:</p>
+<ol>
+<li>Screw the brackets to the front plate, in the middle of their slots.</li>
+<li>Put a square of <strong>double-sided tape</strong> on the face of each bracket.</li>
+<li>Push the pull-out closed, hold the door in its closed position with even gaps, and press it on.</li>
+<li>Pull out gently. Unscrew the brackets from the plate (they stay stuck to the door), screw them to the door, then screw them back to the plate.</li>
+<li>Use the slots to fine-tune the gaps.</li>
+</ol>
+<h2 id="taking-the-hinges-off">Taking the hinges off</h2>
+<p>Most modern concealed (Euro) hinges unclip from their mounting plates: push the lever or tab at the back of the hinge arm. Remove the mounting plates from the cabinet too, or they&#39;ll catch on the brackets. On face-frame cabinets the hinge cups stay in the door; they don&#39;t get in the way.</p>
+<h2 id="when-to-keep-the-door-hinged">When to keep the door hinged</h2>
+<p>Choose <strong>Keep it hinged</strong> in the generator if:</p>
+<ul>
+<li><strong>Your door is inset</strong> (it sits inside the face frame opening rather than in front of it). Door mount assumes an overlay door and doesn&#39;t support inset doors yet.</li>
+<li>One door covers <strong>more than the pull-out</strong> (for example, a sink base where the pull-out only fills half).</li>
+<li>You want to be able to open the door without pulling the shelf out.</li>
+<li>You have fixed shelves and want to pull out <strong>one tier at a time</strong>.</li>
+</ul>
+<p>In keep-hinged mode the generator dodges your hinges, and the front plate is solid with the <a href="parameters.html#front-handles">handles you pick</a>: slots, printed bars, arches or knobs, or a store-bought pull. Handles that stick out move the pull-out back so the door still closes. To reduce the blocked-side problem, swap to <strong>170° hinges</strong>: they&#39;re widely sold for both face-frame and frameless cabinets, use the standard 35 mm cup, and let the door swing flat out of the way. Match your door&#39;s overlay when you buy them.</p>
+<h2 id="no-door">No door</h2>
+<p>Cabinet without a door, or you&#39;re leaving it off? Choose <strong>No door</strong>. The front plate is the face, with the <a href="parameters.html#front-handles">handles you pick</a>, and there are no hinges to dodge. Unscrew any leftover hinge plates or catches before you fit the rails.</p>
+<h2 id="when-the-door-only-opens-to-90">When the door only opens to 90°</h2>
+<p>Sometimes the door can&#39;t swing further: a wall, an appliance or the next doorway&#39;s frame stops it. Then the open door stands right beside the pulled-out tier and you can&#39;t reach that side at all.</p>
+<p>Tell the generator: <strong>How far does the door open? → Only to 90°</strong>. The pull-out next to the hinges then gets a single openGrid panel tucked against the hinge side, so every accessory faces the side you can reach. If there are two pull-outs side by side, the other one pulls out clear of the door and stays two-sided.</p>
+<p><img src="img/one-sided.svg" alt="Top view: the door stops at 90 degrees against a neighbouring door frame; the tier&#39;s only panel sits against the door side, accessories face the open side"></p>
+<p>You lose the hidden face of the panel, so a one-sided tier holds a bit less. Since nothing hangs on the back, openGrid <strong>Lite</strong> boards are enough.</p>
+<h2 id="choosing-sides-for-each-pull-out">Choosing sides for each pull-out</h2>
+<p>Every pull-out (in every tier) has its own setting under <strong>Your pull-out → Sides</strong>: <em>Auto</em>, <em>Both</em>, <em>Left only</em> or <em>Right only</em>. Use it for a pull-out next to a wall or a fridge, or to make a two-sided one single-sided on purpose.</p>
+<p><em>Auto</em> picks:</p>
+<ul>
+<li><strong>One-sided</strong> for the pull-out next to the hinges of a kept door that only opens to 90°.</li>
+<li><strong>Facing outward</strong> for side-by-side pull-outs on a mounted door. They come out together, with only about 1½″ (40 mm) between them, so nothing on the inner faces would be reachable.</li>
+<li><strong>Both sides</strong> for everything else.</li>
+</ul>
+<p>Pull-outs set the same way share print files.</p>
+<nav class="pager"><a href="measuring.html">← Measuring</a><a href="hardware.html">Hardware →</a></nav></main>
+</div>
+<footer><b>PullGrid by Phorbie Designs</b> · <a href="https://github.com/Phorbie/PullGrid/tree/main/docs/door-mount.md">Edit this page on GitHub</a> · <a href="../LICENSE">CC BY-SA 4.0</a></footer>
+</body>
+</html>

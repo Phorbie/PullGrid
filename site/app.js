@@ -314,7 +314,7 @@ function apply(d, out) {
   report = parseReport(out.carriage.log);
   lastDefines = d;
   meshVolume = 0;
-  (state.door_mode === "mount" ? moving : scene).add(groups.door);  // a kept door stays put
+  (state.door_mode === "mount" ? moving : scene).add(groups.door);  // a kept door stays put; "none" renders nothing
   for (const [name] of PREVIEW) {
     const v = setPart(name, report.fits ? out[name].stl : name === "cabinet" || name === "keepouts" ? out[name].stl : null);
     if (name === "carriage" || name === "rails") meshVolume += v;
@@ -425,6 +425,7 @@ function showReport() {
   html += report.door === "mount"
     ? row("Door", report.ok.length > 1 ? `mounted on all ${report.ok.length} tiers` : "mounted on the pull-out",
           report.ok[0]?.bracket ? `brackets ${fmt(report.ok[0].bracket)} deep` : "")
+    : report.door === "none" ? row("Door", "none", "front plate with finger slots")
     : row("Hinges", state.hinges.length ? `${state.hinges.length} custom` : state.hinge_side === "none" ? "none" : `${report.hinges} auto`);
   dl.innerHTML = html;
   showSides();
@@ -522,6 +523,10 @@ function showBuild() {
     : `${where(r.ok[0])}.`;
   $("#steps").innerHTML = [
     "Check the cabinet is fixed to the wall or its neighbours. A loaded pull-out at full extension puts its weight out front.",
+    // clear the cabinet first: mount and no-door builds are sized as if the hinge hardware were gone
+    mount ? "Take the door off its hinges and set it somewhere flat. Unscrew the hinge plates from the cabinet, and any catches or bumpers: the pull-out uses that space."
+      : r.door === "none" ? "If the cabinet still has hinge plates, catches or bumpers from an old door, unscrew them: the pull-out uses that space."
+      : "Leave the door on. Open it as far as it goes while you work.",
     "Glue the plate pieces together with the bowtie keys on the inside face. Let them cure.",
     `Cut the tie rods${angle ? " and the aluminum angle" : ""} (see Cut). File the ends smooth.`,
     "Unclip each slide. Screw the inner members to the base cheeks, front ends flush with the front of the base.",
@@ -532,7 +537,7 @@ function showBuild() {
           : `Screw the outer slide members to the floor rails. Set the rails ${place}`,
     `Clip the carriage on to check it runs straight. Mark the rails, unclip the carriage, ${angle ? "drill the inward leg and " : ""}screw the rails to the floor${tiers ? " or shelf" : ""}.`,
     mount && tiers ? "Every tier's front ends must be the same distance behind the opening. Push all the tiers in and check their front plates line up with a straightedge before you screw the last rails down." : "",
-    mount ? `Take the door off its hinges. Stick double-sided tape on the bracket faces, clip ${tiers ? "every tier" : "the carriage"} in, close it, line the door up and press it on.` : "",
+    mount ? `Stick double-sided tape on the bracket faces and clip ${tiers ? "every tier" : "the carriage"} in. Push it closed, hold the door in place with even gaps all round (coins make good spacers) and press it onto the tape.` : "",
     mount ? "Pull out gently, unscrew the brackets from the plate (they stay taped to the door), screw them to the door, then screw them back to the plate. The slots let you fine-tune height and side-to-side." : "",
     mount && tiers ? "If one tier sits back from the door, put washers between its brackets and the plate until it touches." : "",
     !r.oneSided ? "Snap openGrid accessories onto both sides."

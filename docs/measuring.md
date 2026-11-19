@@ -20,7 +20,7 @@ Most cabinets need three numbers and two answers. Everything else has a sensible
 - **Face frame**: a wooden frame (usually 1½–2″ wide) is glued to the front of the box, and the opening is smaller than the inside of the box. Common in North America.
 - **Frameless**: no frame, so the opening is the whole box. Common in Europe, Australia, and IKEA kitchens.
 
-**Your door.** Will you [mount it on the pull-out](door-mount.md) (recommended) or keep it hinged? If you keep it, tell the generator which side the hinges are on and whether the door [opens past 90°](door-mount.md#when-the-door-only-opens-to-90).
+**Your door.** Will you [mount it on the pull-out](door-mount.md) (recommended), keep it hinged, or is there [no door](door-mount.md#no-door)? If you keep it, tell the generator which side the hinges are on and whether the door [opens past 90°](door-mount.md#when-the-door-only-opens-to-90).
 
 ## Fixed shelves
 

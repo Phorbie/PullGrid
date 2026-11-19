@@ -1,12 +1,20 @@
 # Assembly and install
 
-Allow an afternoon. You'll build the pull-out on a table, fit the rails in the cabinet, clip it in, then hang the door. The generator's **Install** steps are a short version of this page, with your exact rail positions filled in.
+Allow an afternoon. You'll clear the cabinet, build the pull-out on a table, fit the rails, clip it in, and (if you're mounting it) put the door on the front. The generator's **Install** steps are a short version of this page, with your exact rail positions filled in.
 
 You'll need everything on the [hardware list](hardware.md), the printed parts, your openGrid boards, and the [tools](hardware.md#tools).
 
 > **Is the cabinet fixed down?** A loaded pull-out at full extension puts its weight in front of the cabinet. Base cabinets and wall-hung cabinets are already screwed in place. A freestanding cabinet (a pantry unit, a hallway cupboard) needs an anti-tip strap or a couple of screws into a wall stud or its neighbour before you fit a pull-out. Tall units with several tiers matter most.
 
 With [fixed shelves](measuring.md#fixed-shelves), build one pull-out per tier. The steps are the same; the rails for each tier go on its shelf.
+
+## Before you start: clear the cabinet
+
+What to do depends on what you chose under **Your door**:
+
+- **Mount it on the pull-out:** take the door off its hinges now and set it somewhere flat. Then unscrew the **hinge plates** from the cabinet, plus any catches or bumpers. The generator sized the pull-out to use that space, so they'd be in its way. The door goes back on in [step 7](#7-mount-the-door).
+- **Keep it hinged:** leave the door on and open it as far as it goes while you work.
+- **No door:** if the cabinet still has hinge plates, catches or bumpers from an old door, unscrew them.
 
 ![The finished pull-out, door mounted, pulled out of the cabinet](img/assembly-mount.png)
 
@@ -49,7 +57,7 @@ Lay the base pieces in a row. Press the lever on each slide to unclip the inner 
 
 ## 6. Clip it in
 
-Clip the pull-out back onto the slides and push it home. If your door stays hinged, you're done: snap on your accessories.
+Clip the pull-out back onto the slides and push it home. If your door stays hinged, or there's no door, you're done: snap on your accessories.
 
 ## 7. Mount the door
 
@@ -57,13 +65,14 @@ Clip the pull-out back onto the slides and push it home. If your door stays hing
 
 ![Side section of the door bracket](img/door-mount.svg)
 
-1. Take the door off its hinges and remove the hinge mounting plates from the cabinet.
-2. Screw the brackets to the front plate from inside the pull-out, through the slots, with the screws in the **middle** of the slots. A long screwdriver reaches the bottom pair. With stacked tiers, do this on every tier.
-3. Put a square of double-sided tape on the face of each bracket.
-4. Push the pull-out closed. Hold the door in its closed position with even gaps all round (coins or card make good spacers) and press it firmly onto the tape.
-5. Pull out gently. Unscrew the brackets from the plate; they stay taped to the door.
-6. Screw each bracket to the door through its two slotted holes.
-7. Screw the brackets back onto the plate. Close the pull-out and check the gaps.
+The door has been off since [before you started](#before-you-start-clear-the-cabinet).
+
+1. Screw the brackets to the front plate from inside the pull-out, through the slots, with the screws in the **middle** of the slots. A long screwdriver reaches the bottom pair. With stacked tiers, do this on every tier.
+2. Put a square of double-sided tape on the face of each bracket.
+3. Push the pull-out closed. Hold the door in its closed position with even gaps all round (coins or card make good spacers) and press it firmly onto the tape.
+4. Pull out gently. Unscrew the brackets from the plate; they stay taped to the door.
+5. Screw each bracket to the door through its two slotted holes.
+6. Screw the brackets back onto the plate. Close the pull-out and check the gaps.
 
 ## 8. Adjust
 

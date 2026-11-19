@@ -22,7 +22,7 @@ Relative to the cabinet **interior**: `x` across from the left wall, `y` depth f
 
 | Param | Default | Meaning |
 |---|---|---|
-| `door_mode` | `mount` | `mount`: the door comes off its hinges and screws to printed brackets on the front plate. `keep`: the door stays hinged; hinges become keep-outs |
+| `door_mode` | `mount` | `mount`: the door comes off its hinges and screws to printed brackets on the front plate. `keep`: the door stays hinged; hinges become keep-outs. `none`: no door; nothing to dodge, solid front plate with finger slots |
 | `door_thickness` | 19 | Door mount needs at least 15 |
 | `door_overlay` | 12.7 | How far the door overlaps the opening per side. Preview only |
 | `face_frame_thickness` | -1 | Face frame depth, front to back. Auto: 19 face frame, 0 frameless. Sets the bracket depth |

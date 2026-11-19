@@ -80,6 +80,10 @@ run reach_auto      "reach=right"         -D 'door_mode="keep"' -D 'door_opens="
 run reach_auto_r    "reach=left"          -D 'door_mode="keep"' -D 'door_opens="only_90"' -D 'hinge_side="right"'
 run reach_mount     "reach=both"          -D 'door_opens="only_90"'
 run reach_one_panel "pullout=1 reach=left panels=1" -D 'reach_from="left"' -D 'panel_count=2'
+# no door: nothing to dodge, no brackets, both sides
+run door_none       "door=none region"    -D 'door_mode="none"'
+run door_none_hinge "hinges=0"            -D 'door_mode="none"' -D 'hinge_side="left"'
+run door_none_reach "pullout=1 reach=both" -D 'door_mode="none"' -D 'door_opens="only_90"'
 # sides per pull-out: a 90-degree door only blocks its neighbour; a mounted pair faces outward
 run side_door_only  "pullout=1 reach=right" -D 'opening_w=480' -D 'door_mode="keep"' -D 'door_opens="only_90"'
 run side_open_both  "pullout=2 reach=both"  -D 'opening_w=480' -D 'door_mode="keep"' -D 'door_opens="only_90"'

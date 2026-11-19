@@ -49,8 +49,9 @@ door_intrusion = 0;
 keepouts = [];
 
 /* [Door] */
-// mount = your door comes off its hinges and becomes the pull-out's front; keep = door stays hinged
-door_mode = "mount"; // [mount, keep]
+// mount = your door comes off its hinges and becomes the pull-out's front; keep = door stays hinged;
+// none = no door (or it stays off)
+door_mode = "mount"; // [mount, keep, none]
 // Door thickness
 door_thickness = 19;
 // How far the door overlaps the opening on each side (preview only)
@@ -134,12 +135,13 @@ auto_hinges = [for (i = [0 : auto_hinge_count - 1])
     [o_b + 80 + i * (opening_h - 160) / (auto_hinge_count - 1), auto_hinge_intrusion, 50, 45]];
 // a mounted door has no hinges, so nothing to dodge
 MOUNT = door_mode == "mount";
-hinge_list = (hinge_side == "none" || MOUNT) ? [] : (len(hinges) > 0 ? hinges : auto_hinges);
+HUNG = door_mode == "keep" && hinge_side != "none";   // "none": no door, nothing to dodge
+hinge_list = !HUNG ? [] : (len(hinges) > 0 ? hinges : auto_hinges);
 
 // Hinges → keep-outs on the hinge side of the opening
 function hinge_x(intr) = hinge_side == "left" ? o_l : front_w - o_r - intr;
 hinge_keepouts = [for (h = hinge_list) [hinge_x(h[1]), 0, h[0] - h[2] / 2, h[1], h[3], h[2]]];
-door_keepouts = (hinge_side == "none" || MOUNT || door_intrusion <= 0) ? [] :
+door_keepouts = (!HUNG || door_intrusion <= 0) ? [] :
     [[hinge_x(door_intrusion), 0, o_b, door_intrusion, 30, opening_h]];
 all_keepouts = concat(hinge_keepouts, door_keepouts, keepouts);
 // OpenSCAD counts [0:-1] backwards, so empty lists need a guard
@@ -162,7 +164,7 @@ M = region == "metric";
 function reach_of(t, p, N) = let(m = [for (s = sides) if (s[0] == t && s[1] == p && s[2] != "auto") s[2]])
     len(m) ? m[0]
   : reach_from != "auto" ? reach_from
-  : !MOUNT && door_opens == "only_90" && hinge_side != "none" && p == (hinge_side == "left" ? 1 : N)
+  : HUNG && door_opens == "only_90" && p == (hinge_side == "left" ? 1 : N)
     ? (hinge_side == "left" ? "right" : "left")
   : MOUNT && N > 1 && (p == 1 || p == N) ? (p == 1 ? "left" : "right")
   : "both";
@@ -320,7 +322,7 @@ if (fits) {
     echo(str("PULLGRID hw=", 2 * rods, " item=", M ? "M6 nuts (acorn nuts look tidier at the front)" : "1/4in-20 hex nuts (acorn nuts look tidier at the front)"));
     echo(str("PULLGRID hw=", 2 * rods, " item=", M ? "M6 flat washers" : "1/4in flat washers"));
     echo(str("PULLGRID hw=", vsum([for (Gt = GS) floor_screws(Gt)]), " item=", M ? "4 x 20 mm wood screws (floor rails to cabinet)" : "#8 x 3/4in wood screws (floor rails to cabinet)"));
-    echo(str("PULLGRID hw=", vsum([for (Gt = GS) g(Gt, "N") * 16]) + 2 * brackets, " item=", M ? "4 x 13 mm pan-head self-tapping screws (slides; brackets to plate)" : "#8 x 1/2in pan-head sheet-metal screws (slides; brackets to plate)"));
+    echo(str("PULLGRID hw=", vsum([for (Gt = GS) g(Gt, "N") * 16]) + 2 * brackets, " item=", str(M ? "4 x 13 mm pan-head self-tapping screws" : "#8 x 1/2in pan-head sheet-metal screws", MOUNT ? " (slides; brackets to plate)" : " (slides)")));
     if (MOUNT) echo(str("PULLGRID hw=", 2 * brackets, " item=", M ? "4 x 16 mm wood screws (brackets to door)" : "#8 x 5/8in wood screws (brackets to door)"));
     if (MOUNT && len(TV) > 1) echo(str("PULLGRID hw=8 item=", M ? "M4 flat washers (shims, if one tier sits back from the door)" : "#8 flat washers (shims, if one tier sits back from the door)"));
     echo("PULLGRID hw=1 item=CA glue or epoxy (plate seams)");
@@ -342,7 +344,7 @@ module door_part() {
     dw = opening_w + 2 * door_overlay;
     z0 = o_b - door_overlay; h = opening_h + 2 * door_overlay;
     if (MOUNT && fits) translate([o_l - door_overlay, DOOR_Y - door_thickness, z0]) cube([dw, door_thickness, h]);
-    else if (hinge_side != "none") {
+    else if (HUNG) {
         hx = hinge_side == "left" ? o_l - door_overlay : front_w - o_r + door_overlay;
         translate([hinge_side == "left" ? hx - door_thickness : hx, DOOR_Y - dw, z0]) cube([door_thickness, dw, h]);
     }

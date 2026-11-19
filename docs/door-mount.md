@@ -60,6 +60,10 @@ Choose **Keep it hinged** in the generator if:
 
 In keep-hinged mode the generator dodges your hinges, and the front plate is solid with finger slots. To reduce the blocked-side problem, swap to **170° hinges**: they're widely sold for both face-frame and frameless cabinets, use the standard 35 mm cup, and let the door swing flat out of the way. Match your door's overlay when you buy them.
 
+## No door
+
+Cabinet without a door, or you're leaving it off? Choose **No door**. The front plate is the face, solid with finger slots, and there are no hinges to dodge. Unscrew any leftover hinge plates or catches before you fit the rails.
+
 ## When the door only opens to 90°
 
 Sometimes the door can't swing further: a wall, an appliance or the next doorway's frame stops it. Then the open door stands right beside the pulled-out tier and you can't reach that side at all.
